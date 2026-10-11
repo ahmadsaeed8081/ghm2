@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHM21 // P2P Mutual Aid Protocol</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-obsidian: #07070A;
+            --surface-glass: rgba(18, 18, 24, 0.88);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --border-neon: rgba(0, 255, 163, 0.25);
+            --neon-emerald: #00FFA3;
+            --electric-cyan: #00D1FF;
+            --titanium-silver: #E8E8F0;
+            --text-muted: #9A9AAE;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Cinzel', serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            background-color: var(--bg-obsidian);
+            color: var(--titanium-silver);
+            font-family: var(--font-sans);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(0, 255, 163, 0.03) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(0, 209, 255, 0.03) 0%, transparent 40%);
+        }
+
+        header {
+            width: 100%;
+            background: rgba(7, 7, 10, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass);
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .header-container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .logo-svg-container { display: flex; align-items: center; gap: 10px; }
+        .logo-text-group { display: flex; flex-direction: column; line-height: 1.1; }
+        .logo-main-title { font-family: var(--font-sans); font-weight: 800; font-size: 19px; letter-spacing: 1px; color: #FFFFFF; }
+        .logo-sub-subtitle { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: 1.5px; color: var(--neon-emerald); }
+
+        .nav-menu { display: flex; gap: 8px; font-family: var(--font-mono); font-size: 11px; align-items: center; }
+        .nav-link { color: var(--text-muted); cursor: pointer; text-decoration: none; transition: color 0.2s; padding: 4px; background: none; border: none; font-family: var(--font-mono); font-size: 11px; }
+        .nav-link:hover { color: var(--neon-emerald); }
+
+        .hamburger-btn {
+            display: none; background: rgba(255,255,255,0.05); border: 1px solid var(--border-glass);
+            color: var(--neon-emerald); font-size: 18px; padding: 6px 10px; border-radius: 6px; cursor: pointer;
+        }
+
+        .mobile-dropdown {
+            display: none; position: absolute; top: 100%; left: 0; width: 100%;
+            background: rgba(7, 7, 10, 0.96); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass); flex-direction: column; padding: 12px 20px; gap: 10px;
+            z-index: 1100; font-family: var(--font-mono); font-size: 12px;
+        }
+        .mobile-dropdown.active { display: flex; }
+
+        .wallet-btn {
+            background: rgba(0, 255, 163, 0.08); border: 1px solid var(--border-neon); color: var(--neon-emerald);
+            font-family: var(--font-mono); font-size: 12px; padding: 6px 12px; border-radius: 6px;
+            display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .wallet-btn:hover { background: rgba(0, 255, 163, 0.15); box-shadow: 0 0 10px rgba(0, 255, 163, 0.2); }
+        .wallet-dot { width: 6px; height: 6px; background-color: var(--neon-emerald); border-radius: 50%; box-shadow: 0 0 6px var(--neon-emerald); }
+
+        main {
+            width: 100%; max-width: 620px; margin: auto; padding: 12px 16px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            flex-grow: 1; justify-content: center;
+        }
+
+        .hero-title { font-size: 24px; font-weight: 600; margin-bottom: 2px; color: var(--titanium-silver); letter-spacing: -0.5px; }
+        .hero-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; font-family: var(--font-mono); }
+
+        .ticker-card {
+            width: 100%; background: rgba(0, 255, 163, 0.02); border: 1px solid rgba(0, 255, 163, 0.15);
+            border-radius: 10px; padding: 8px 16px; margin-bottom: 12px; display: flex; justify-content: space-between;
+            align-items: center; font-family: var(--font-mono);
+        }
+        .ticker-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .ticker-value { font-size: 14px; font-weight: 700; color: var(--neon-emerald); }
+
+        .action-card {
+            width: 100%; background: var(--surface-glass); border: 1px solid var(--border-glass);
+            backdrop-filter: blur(16px); border-radius: 14px; padding: 14px 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); text-align: left;
+        }
+
+        .input-group { margin-bottom: 10px; }
+        label { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; }
+
+        .tier-pills { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
+        .tier-pill {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: 6px;
+            color: var(--titanium-silver); font-family: var(--font-mono); font-size: 12px; padding: 6px 0;
+            text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .tier-pill:hover, .tier-pill.active { border-color: var(--electric-cyan); color: var(--electric-cyan); background: rgba(0, 209, 255, 0.05); }
+
+        .custom-input {
+            width: 100%; background: rgba(7, 7, 10, 0.8); border: 1px solid var(--border-glass);
+            border-radius: 8px; color: var(--neon-emerald); font-family: var(--font-mono); font-size: 14px; padding: 8px 12px; outline: none;
+        }
+        .custom-input:focus { border-color: var(--neon-emerald); }
+
+        .seeker-box {
+            background: rgba(0, 209, 255, 0.03); border: 1px solid rgba(0, 209, 255, 0.2);
+            border-radius: 8px; padding: 10px; margin-bottom: 10px; font-family: var(--font-mono); font-size: 12px;
+        }
+        .seeker-row { display: flex; justify-content: space-between; margin-bottom: 5px; gap: 8px; align-items: center; }
+
+        .execute-btn {
+            width: 100%; background: linear-gradient(135deg, var(--neon-emerald), var(--electric-cyan));
+            color: var(--bg-obsidian); font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+            padding: 10px; border: none; border-radius: 8px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .execute-btn:hover { opacity: 0.9; }
+        .execute-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--text-muted); }
+
+        .copy-btn {
+            background: rgba(0, 209, 255, 0.05); border: 1px solid var(--border-glass); color: var(--electric-cyan);
+            cursor: pointer; font-size: 10px; margin-left: 6px; padding: 4px 6px; border-radius: 4px;
+            display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;
+        }
+        .copy-btn:hover { background: rgba(0, 209, 255, 0.15); border-color: var(--electric-cyan); }
+        .copy-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
+        @keyframes blinkGlow {
+            0% { border-color: var(--neon-emerald); box-shadow: 0 0 5px rgba(0,255,163,0.2); }
+            50% { border-color: #ff3366; box-shadow: 0 0 15px rgba(255,51,102,0.6); }
+            100% { border-color: var(--neon-emerald); box-shadow: 0 0 5px rgba(0,255,163,0.2); }
+        }
+        .blink-btn { animation: blinkGlow 1.2s infinite ease-in-out; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(7, 7, 10, 0.88); backdrop-filter: blur(12px); display: none;
+            justify-content: center; align-items: center; z-index: 2000; padding: 10px;
+        }
+        .modal-content {
+            background: var(--surface-glass); border: 1px solid var(--border-glass); border-radius: 16px;
+            max-width: 720px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7); position: relative;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-glass); padding-bottom: 10px; }
+        .modal-title { font-family: var(--font-mono); font-size: 13px; color: var(--electric-cyan); text-transform: uppercase; }
+        .close-modal { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 16px; cursor: pointer; }
+        .close-modal:hover { color: var(--neon-emerald); }
+
+        .modal-body { font-family: var(--font-mono); font-size: 12px; color: var(--titanium-silver); display: flex; flex-direction: column; gap: 12px; }
+        .modal-item { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .modal-item-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+        .textarea-loh {
+            width: 100%; background: rgba(7, 7, 10, 0.9); border: 1px solid var(--border-glass);
+            border-radius: 6px; color: var(--titanium-silver); font-family: var(--font-mono); font-size: 11px;
+            padding: 10px; resize: none; height: 85px; outline: none;
+        }
+
+        table.history-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; margin-top: 6px; }
+        table.history-table th, table.history-table td { border: 1px solid var(--border-glass); padding: 8px; text-align: left; }
+        table.history-table th { color: var(--electric-cyan); background: rgba(0, 209, 255, 0.04); }
+
+        .accordion-header {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); padding: 12px;
+            border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-weight: 700; color: var(--titanium-silver); transition: border-color 0.2s;
+        }
+        .accordion-header:hover { border-color: var(--electric-cyan); }
+        .accordion-content {
+            display: none; background: rgba(7, 7, 10, 0.6); border: 1px solid var(--border-glass); border-top: none;
+            padding: 14px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; font-size: 11px; line-height: 1.6; color: var(--titanium-silver);
+        }
+        .accordion-content.active { display: block !important; }
+
+        .feed-card { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-glass); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; transition: opacity 0.5s; }
+        .btn-action {
+            background: rgba(0, 255, 163, 0.1); border: 1px solid rgba(0, 255, 163, 0.3); color: var(--neon-emerald);
+            font-family: var(--font-mono); font-size: 11px; padding: 6px 10px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .btn-action.cyan { background: rgba(0, 209, 255, 0.1); border-color: rgba(0, 209, 255, 0.3); color: var(--electric-cyan); }
+        .btn-action.completed { background: rgba(138, 138, 158, 0.1); border-color: var(--text-muted); color: var(--text-muted); cursor: not-allowed; }
+
+        /* Printable Certificate Styles */
+        .cert-container {
+            background: #0d0d12;
+            border: 4px double var(--neon-emerald);
+            padding: 30px;
+            text-align: center;
+            border-radius: 12px;
+            font-family: var(--font-serif);
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,255,163,0.15);
+        }
+        .cert-title { font-size: 20px; color: var(--neon-emerald); letter-spacing: 2px; margin-bottom: 6px; }
+        .cert-subtitle { font-size: 10px; color: var(--text-muted); letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; }
+        .cert-name { font-size: 22px; color: #FFFFFF; border-bottom: 1px solid var(--border-neon); display: inline-block; padding: 0 20px 4px 20px; margin: 10px 0; }
+        .cert-body { font-family: var(--font-sans); font-size: 11px; color: var(--titanium-silver); line-height: 1.6; margin: 15px 0; }
+        .cert-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); }
+
+        @media print {
+            body * { visibility: hidden; }
+            #certificatePrintArea, #certificatePrintArea * { visibility: visible; }
+            #certificatePrintArea { position: absolute; left: 0; top: 0; width: 100%; border: none; background: #fff !important; color: #000 !important; }
+            .cert-container { border: 5px double #000; box-shadow: none; }
+            .cert-title { color: #008855 !important; }
+            .cert-name { border-bottom: 1px solid #000 !important; color: #000 !important; }
+            .cert-body, .cert-footer { color: #333 !important; }
+        }
+
+        @media(max-width: 768px) {
+            .nav-menu { display: none; }
+            .hamburger-btn { display: flex; align-items: center; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <div class="logo-area">
+                <div class="logo-svg-container">
+                    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:30px; height:30px; filter: drop-shadow(0 0 8px rgba(0,255,163,0.3));">
+                        <path d="M50 5L90 20V50C90 75 70 90 50 95C30 90 10 75 10 50V20L50 5Z" fill="url(#grad1)" stroke="#00FFA3" stroke-width="3"/>
+                        <path d="M30 35H45V65H30V35ZM55 35H70V50H55V35ZM55 50H70V65H55V50Z" fill="#07070A"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#00FFA3"/>
+                                <stop offset="100%" stop-color="#00D1FF"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="logo-text-group">
+                        <span class="logo-main-title">GHM21</span>
+                        <span class="logo-sub-subtitle">CODE IS LAW</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-menu" id="headerNavMenu">
+                <button class="nav-link" onclick="openModal('dashboardModal')">[Dashboard]</button>
+                <button class="nav-link" onclick="openModal('schoolModal')">[School]</button>
+                <button class="nav-link" onclick="openModal('tasksModal')">[Tasks]</button>
+                <button class="nav-link" onclick="openModal('feedModal')">[Feed]</button>
+                <button id="monitorNavItem" class="nav-link" onclick="openModal('monitorModal')" style="color: var(--neon-emerald); display: none;">[Monitor]</button>
+                <button class="nav-link" onclick="openModal('whitepaperModal')">[Whitepaper]</button>
+                <button class="nav-link" onclick="openModal('faqModal')">[FAQs]</button>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button id="walletConnectBtn" class="wallet-btn" onclick="connectDynamicWallet()">
+                    <div class="wallet-dot"></div>
+                    <span id="walletButtonText">[ CONNECT ]</span>
+                </button>
+                <button class="hamburger-btn" onclick="toggleMobileMenu()">☰</button>
+            </div>
+        </div>
+
+        <div id="mobileDropdownMenu" class="mobile-dropdown">
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('dashboardModal')" style="text-align: left;">[Dashboard]</button>
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('schoolModal')" style="text-align: left;">[School]</button>
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('tasksModal')" style="text-align: left;">[Tasks]</button>
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('feedModal')" style="text-align: left;">[Feed]</button>
+            <button id="mobileMonitorNavItem" class="nav-link" onclick="toggleMobileMenu(); openModal('monitorModal')" style="color: var(--neon-emerald); display: none; text-align: left;">[Monitor]</button>
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('whitepaperModal')" style="text-align: left;">[Whitepaper]</button>
+            <button class="nav-link" onclick="toggleMobileMenu(); openModal('faqModal')" style="text-align: left;">[FAQs]</button>
+        </div>
+    </header>
+
+    <main>
+        <h1 class="hero-title">P2P Mutual Aid Hub</h1>
+        <p class="hero-subtitle">Zero Balance Engine // Dual-Lane & Tranche Slicing</p>
+
+        <div class="ticker-card">
+            <div class="ticker-label">Protocol Volume</div>
+            <div class="ticker-value" id="protocolVolumeDisplay">0.00 USDT</div>
+        </div>
+
+        <div class="action-card">
+            <div class="seeker-box">
+                <div class="seeker-row"><span>Active Seeker:</span> <span id="targetSeekerAddr" style="color: var(--electric-cyan);">Loading Queue...</span></div>
+                <div class="seeker-row"><span>Seeking (65%):</span> <span id="seekingDispatchNeed" style="color: var(--neon-emerald); font-weight:700;">0.00 USDT</span></div>
+                <div class="seeker-row"><span>Your Position:</span> <span id="userQueuePositionDisplay" style="color: var(--electric-cyan); font-weight:700;">Not Connected</span></div>
+                <div class="seeker-row"><span>Pending Balance:</span> <span id="userPendingBalanceDisplay" style="color: #ff3366; font-weight:700;">0.00 USDT</span></div>
+                <div class="seeker-row"><span>Next Recommit:</span> <span id="nextRecommitDisplay" style="color: var(--electric-cyan); font-weight:700;">No Active Tier</span></div>
+            </div>
+
+            <div class="input-group">
+                <label id="phTierLabel">Provide Help Tier (Min: $20 / $10, Max $5k / $10k, 2.5x Anti-Whale)</label>
+                <div class="tier-pills">
+                    <div class="tier-pill" onclick="setTier(10)">$10</div>
+                    <div class="tier-pill" onclick="setTier(20)">$20</div>
+                    <div class="tier-pill" onclick="setTier(50)">$50</div>
+                    <div class="tier-pill" onclick="setTier(100)">$100</div>
+                </div>
+                <input type="number" id="phAmount" class="custom-input" value="20" min="10" max="10000" step="1" placeholder="Select or enter tier" oninput="updateSurchargePreview()">
+                <div id="surchargePreviewBox" style="font-family: var(--font-mono); font-size: 11px; color: var(--electric-cyan); margin-top: 6px; background: rgba(0,209,255,0.04); padding: 8px; border-radius: 6px; border: 1px dashed rgba(0,209,255,0.2);">
+                    Surcharge Fee: $0.00 | Total Wallet Payment: $20.00 USDT
+                </div>
+            </div>
+
+            <button id="phExecuteBtn" class="execute-btn" onclick="executeProvideHelp()">Provide Help (PH)</button>
+
+            <div class="queue-status" style="margin-top: 8px; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-glass); padding-top: 6px;">
+                <div>Dual-Lane Queue: <span id="queueLengthDisplay" style="color: var(--titanium-silver)">0 Nodes</span></div>
+                <div style="cursor: pointer; color: var(--electric-cyan);" onclick="openModal('vaultModal')">[ Vault ]</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 1. Node Dashboard Modal -->
+    <div id="dashboardModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Node Dashboard</div>
+                <button class="close-modal" onclick="closeModal('dashboardModal')">[✕]</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-item" style="background: rgba(0, 209, 255, 0.04); border-color: rgba(0, 209, 255, 0.3);">
+                    <div class="modal-item-row">
+                        <span id="timerLabel" style="color: var(--electric-cyan); font-weight:700;">⏱️ Activeness Window (30m) ⏰</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span id="activenessCountdown" style="color: var(--neon-emerald); font-weight:700; font-size: 12px;">30m 00s</span>
+                            <button class="btn-action cyan" style="font-size: 10px; padding: 4px 8px;" onclick="requestEmergencyGrace()">🛡️ Grace ($5)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-item" style="background: rgba(0, 255, 163, 0.04); border-color: var(--border-neon);">
+                    <div class="modal-item-row">
+                        <span style="color: var(--neon-emerald); font-weight:700;">⚠️ LOH Status: <span id="lohStatusText" style="color:#ff3366;">Pending 📢</span></span>
+                        <button id="lohDashboardBtn" class="execute-btn blink-btn" style="width: auto; padding: 6px 14px; font-size: 11px;" onclick="openModal('lohModal')">Submit LOH</button>
+                    </div>
+                </div>
+
+                <div class="modal-item" style="background: rgba(0, 255, 163, 0.03); border-color: var(--border-neon);">
+                    <label style="color: var(--neon-emerald);">Tip Statistics</label>
+                    <div class="modal-item-row"><span>Times Tipped:</span> <span id="nodeTipCount" style="color: var(--titanium-silver); font-weight:700;">0</span></div>
+                    <div class="modal-item-row"><span>Total Tips Received:</span> <span id="nodeTotalTips" style="color: var(--neon-emerald); font-weight:700;">0.00 USDT</span></div>
+                </div>
+
+                <div class="modal-item">
+                    <label style="color: var(--electric-cyan);">Inspect Account & Node Details</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <input type="text" id="observeAddressInput" class="custom-input" placeholder="0x... Address" style="font-size: 11px; padding: 6px;">
+                        <button class="execute-btn" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="observeTargetAccount()">Inspect</button>
+                    </div>
+                    <div id="inspectResultBox" style="font-size: 11px; color: var(--titanium-silver); background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; display: none;"></div>
+                </div>
+
+                <div class="modal-item">
+                    <label style="color: var(--electric-cyan);">Telegram ID Sync</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="telegramIdInput" class="custom-input" placeholder="Telegram ID..." style="font-size: 12px; padding: 6px;">
+                        <button class="execute-btn" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="saveTelegramId()">Save</button>
+                    </div>
+                </div>
+
+                <div class="modal-item" style="background: rgba(255, 255, 255, 0.02); border-color: var(--border-glass);">
+                    <label style="color: var(--electric-cyan);">Slots Overview (Active & Paused Architecture)</label>
+                    <div class="modal-item-row"><span>Current Active Slot:</span> <span id="slotActiveTierDisplay" style="color: var(--neon-emerald); font-weight:700;">$0.00 USDT (Step 1/3)</span></div>
+                    <div class="modal-item-row"><span>Parked / Paused Slots:</span> <span id="slotPausedDisplay" style="color: var(--text-muted);">None</span></div>
+                </div>
+
+                <div class="modal-item" style="background: rgba(255, 255, 255, 0.02); border-color: var(--border-glass);">
+                    <label style="color: var(--electric-cyan);">Round Progress & Anti-Whale Ceiling (2.5x)</label>
+                    <div class="modal-item-row"><span>Progress:</span> <span id="nodeProgressRound" style="color: var(--neon-emerald); font-weight:700;">Round 1 (Step 1/3)</span></div>
+                    <div class="modal-item-row"><span>Graduation:</span> <span id="nodeGradStatus" style="color: #ff3366;">Not Graduated</span></div>
+                    <div class="modal-item-row"><span>Handshake:</span> <span id="nodeHandshakeStatus" style="color: #ff3366;">Pending</span></div>
+                    <div class="modal-item-row"><span>Next Ceiling:</span> <span id="nodeAntiWhaleCeiling" style="color: var(--electric-cyan);">Max $0.00 USDT</span></div>
+                </div>
+
+                <div class="modal-item" style="background: rgba(255, 51, 102, 0.03); border-color: rgba(255, 51, 102, 0.2);">
+                    <label style="color: #ff3366;">Sunset Net Profit Tracker & Restitution</label>
+                    <div class="modal-item-row" style="margin-top: 4px;"><span>Total PH:</span> <span id="nodeTotalPH" style="color: var(--titanium-silver);">$0.00 USDT</span></div>
+                    <div class="modal-item-row"><span>Total GH:</span> <span id="nodeTotalGH" style="color: var(--neon-emerald); font-weight: 700;">$0.00 USDT</span></div>
+                    <div class="modal-item-row"><span>Status:</span> <span id="nodeNetProfit" style="color: var(--electric-cyan); font-weight:700;">$0.00 USDT</span></div>
+                    <button id="claimRestitutionBtn" class="execute-btn" style="display:none; margin-top: 6px; background: #ff3366; color: #fff;" onclick="claimRestitution()">Claim Restitution Deficit 🛡️</button>
+                </div>
+
+                <div class="modal-item" style="background: rgba(0, 209, 255, 0.03); border-color: rgba(0, 209, 255, 0.2);">
+                    <label style="color: var(--electric-cyan);">Referral Network</label>
+                    <div class="modal-item-row" style="margin-top: 4px;">
+                        <span>Sponsor Link:</span> <span id="nodeSponsorDisplay" style="color: var(--electric-cyan); font-size:11px;">Root / Direct</span>
+                    </div>
+                    <div class="modal-item-row" style="margin-top: 4px;">
+                        <span style="width: 35%;">Your Link:</span>
+                        <input type="text" id="userReferralInput" class="custom-input" readonly value="Connect Wallet" style="font-size: 11px; padding: 6px; width: 45%;">
+                        <button class="copy-btn" onclick="copyToClipboard(document.getElementById('userReferralInput').value)">
+                            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> COPY
+                        </button>
+                    </div>
+                </div>
+
+                <div class="modal-item">
+                    <label style="color: var(--electric-cyan);">Downline Trace</label>
+                    <div class="modal-item-row"><span>Rank:</span> <span id="nodeActiveRank" style="color: var(--neon-emerald); font-weight:700;">Member</span></div>
+                    <div class="modal-item-row"><span>Level 1:</span> <span id="nodeL1Trace">0 Nodes ($0.00)</span></div>
+                    <div class="modal-item-row"><span>Level 2:</span> <span id="nodeL2Trace">0 Nodes ($0.00)</span></div>
+                    <div class="modal-item-row"><span>Level 3:</span> <span id="nodeL3Trace">0 Nodes ($0.00)</span></div>
+                    <div class="modal-item-row"><span>Level 4:</span> <span id="nodeL4Trace">0 Nodes ($0.00)</span></div>
+                    <div class="modal-item-row"><span>Level 5:</span> <span id="nodeL5Trace">0 Nodes ($0.00)</span></div>
+                </div>
+
+                <div class="modal-item">
+                    <label style="color: var(--electric-cyan);">Transaction History</label>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txHistoryBody">
+                            <tr>
+                                <td colspan="4" style="text-align:center; color: var(--text-muted);">No transactions yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Sunflower School & Printable Certificate Modal -->
+    <div id="schoolModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Sunflower School & Diploma</div>
+                <button class="close-modal" onclick="closeModal('schoolModal')">[✕]</button>
+            </div>
+            <div class="modal-body" id="schoolModalBody"></div>
+        </div>
+    </div>
+
+    <!-- 3. Tasks Modal -->
+    <div id="tasksModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Tasks & Fast Pass (@GHM21_tasks)</div>
+                <button class="close-modal" onclick="closeModal('tasksModal')">[✕]</button>
+            </div>
+            <div class="modal-body" id="tasksModalBody"></div>
+        </div>
+    </div>
+
+    <!-- 4. Community Feed Modal -->
+    <div id="feedModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Global Community Feed</div>
+                <button class="close-modal" onclick="closeModal('feedModal')">[✕]</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Globally synchronized network feed. Submit proofs, review tips, and pass auditor verification (@GHM21_tasks).</div>
+                <div class="modal-item">
+                    <label for="recoverTaskHash">Save a task transaction that already confirmed</label>
+                    <div style="font-size:10px;color:var(--text-muted);line-height:1.5;">Paste the transaction hash from the failed save message. The task title and proof link will be read from Polygon. This only saves to MongoDB; it does not send another blockchain transaction.</div>
+                    <input id="recoverTaskHash" class="custom-input" type="text" placeholder="0x… confirmed transaction hash" autocomplete="off">
+                    <input id="recoverTaskFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple style="font-size:10px;color:var(--text-muted);">
+                    <button id="recoverTaskButton" class="execute-btn" type="button" onclick="recoverConfirmedTaskSubmission()">Save confirmed task</button>
+                </div>
+                <div id="feedSubmissionsContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                    <p style="color: var(--text-muted); font-size: 11px;">Loading feed...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Global Protocol Monitor Modal -->
+    <div id="monitorModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" style="color: var(--neon-emerald);">Auditor Protocol Monitor & Activity Ledger</div>
+                <button class="close-modal" onclick="closeModal('monitorModal')">[✕]</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-item-row" style="background: rgba(0,209,255,0.04); padding: 8px; border-radius: 6px; border: 1px dashed rgba(0,209,255,0.2);">
+                    <span style="font-size: 11px; color: var(--electric-cyan);">Total System Participants: <b id="monitorParticipantCount" style="color: var(--neon-emerald);">0</b></span>
+                    <button class="btn-action cyan" style="font-size: 10px; padding: 4px 8px;" onclick="loadGlobalProtocolMonitor()">🔄 Refresh Data</button>
+                </div>
+                <div class="modal-item" style="background: rgba(255, 51, 102, 0.02); border-color: rgba(255, 51, 102, 0.15); margin-bottom: 8px;">
+                    <div class="modal-item-row">
+                        <span style="font-size: 10px; color: var(--text-muted);">🛡️ Admin: Emergency Protocol Pause</span>
+                        <button class="execute-btn" style="width: auto; padding: 4px 10px; font-size: 10px; background: rgba(255,51,102,0.15); color: #ff3366; border: 1px solid rgba(255,51,102,0.3);" onclick="toggleContractPause()">Toggle Pause</button>
+                    </div>
+                </div>
+                <div id="adminRotationPanel" class="modal-item" style="display:none; background: rgba(0, 255, 163, 0.03); border-color: var(--border-neon); margin-bottom: 8px;">
+                    <label style="color: var(--neon-emerald);">🛡 Admin: Auditor Key Rotation</label>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <input type="text" id="newAuditorInput" class="custom-input" placeholder="New Auditor Address 0x..." style="font-size: 11px; padding: 6px;">
+                        <button class="execute-btn" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="rotateAuditorAddress()">Rotate Auditor</button>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Live, unfiltered ledger of all participant nodes, activeness states, rank, team size, and PH amounts.</div>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Node Address</th>
+                            <th>Status / Reason</th>
+                            <th>Rank</th>
+                            <th>Team Size</th>
+                            <th>PH Amount</th>
+                            <th>Block / Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalMonitorBody">
+                        <tr>
+                            <td colspan="6" style="text-align:center; color: var(--text-muted);">Querying on-chain events...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Letter of Happiness Modal -->
+    <div id="lohModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" style="color: var(--neon-emerald);">Letter of Happiness</div>
+                <button class="close-modal" onclick="closeModal('lohModal')">[✕]</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size: 11px; color: var(--text-muted);">Required upon receiving a payout. Broadcast to @GHM21_loh. Country is auto-detected and verified.</div>
+                
+                <div class="modal-item" style="background: rgba(0, 209, 255, 0.04); border-color: rgba(0, 209, 255, 0.3);">
+                    <div class="modal-item-row">
+                        <span style="color: var(--electric-cyan); font-weight:700;">⚡ Instant LOH Fast Pass ($5.00)</span>
+                        <button class="execute-btn" style="width: auto; padding: 6px 14px; font-size: 11px;" onclick="executeLOHFastPass()">Pay $5 Fast Pass</button>
+                    </div>
+                </div>
+
+                <div class="modal-item">
+                    <label>Amount Received (USDT)</label>
+                    <input type="number" id="lohReceivedAmount" class="custom-input" step="0.01" style="font-size: 13px; padding: 8px;" oninput="applyLOHTemplate(document.getElementById('lohTemplateSelect').value)">
+                </div>
+
+                <div class="modal-item">
+                    <label>Template</label>
+                    <select id="lohTemplateSelect" class="custom-input" style="font-size:12px; padding:6px;" onchange="applyLOHTemplate(this.value)">
+                        <option value="1">Template 1: Standard Payout Confirmation</option>
+                        <option value="2">Template 2: Surplus Cascade Appreciation</option>
+                        <option value="3">Template 3: Custom Free-Form</option>
+                    </select>
+                </div>
+
+                <div class="modal-item">
+                    <label>Full Name / Alias (Mandatory)</label>
+                    <input type="text" id="lohName" class="custom-input" placeholder="e.g. Alex Morgan" style="font-size: 13px; padding: 8px;" oninput="applyLOHTemplate(document.getElementById('lohTemplateSelect').value)">
+                </div>
+
+                <div class="modal-item">
+                    <label>Detected Country / Jurisdiction</label>
+                    <select id="lohCountrySelect" class="custom-input" style="font-size: 13px; padding: 8px; color: var(--electric-cyan);">
+                        <option value="ZA 🇿🇦 South Africa">🇿🇦 South Africa (ZA)</option>
+                        <option value="NG 🇳🇬 Nigeria">🇳🇬 Nigeria (NG)</option>
+                        <option value="KE 🇰🇪 Kenya">🇰🇪 Kenya (KE)</option>
+                        <option value="UG 🇺🇬 Uganda">🇺🇬 Uganda (UG)</option>
+                        <option value="GH 🇬🇭 Ghana">🇬🇭 Ghana (GH)</option>
+                        <option value="US 🇺🇸 United States">🇺🇸 United States (US)</option>
+                        <option value="GB 🇬🇧 United Kingdom">🇬🇧 United Kingdom (GB)</option>
+                        <option value="CA 🇨🇦 Canada">🇨🇦 Canada (CA)</option>
+                        <option value="AU 🇦🇺 Australia">🇦🇺 Australia (AU)</option>
+                        <option value="OTHER 🌍 International">🌍 International / Other</option>
+                    </select>
+                </div>
+
+                <div class="modal-item">
+                    <label>Letter Body</label>
+                    <textarea class="textarea-loh" id="lohTextarea"></textarea>
+                </div>
+
+                <div class="modal-item" style="border: 1px dashed var(--neon-emerald);">
+                    <label style="color: var(--neon-emerald);">Upload Proof Receipt Image / Video (Mandatory)</label>
+                    <input type="file" id="lohFile" class="custom-input" accept="image/*,video/*" style="font-size: 12px; padding: 6px; color: var(--titanium-silver);" required>
+                </div>
+
+                <button id="lohSubmitBtn" class="execute-btn" onclick="submitLOH()">Submit & Broadcast</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Safety Net Vault Modal -->
+    <div id="vaultModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" style="color: var(--neon-emerald);">Protocol Health Insurance // Safety Net Vault</div>
+                <button class="close-modal" onclick="closeModal('vaultModal')">[✕]</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-item"><div class="modal-item-row"><span>Vault Address:</span> <span style="color: var(--electric-cyan); font-size:11px;">0xA9162e7E3d25D575EEB75D1291514Ab41BBecA10</span>
+                    <button class="copy-btn" onclick="copyToClipboard('0xA9162e7E3d25D575EEB75D1291514Ab41BBecA10')">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> COPY
+                    </button>
+                </div></div>
+                <div class="modal-item"><div class="modal-item-row"><span>Reserve Balance:</span> <span id="vaultBalanceDisplay" style="color: var(--neon-emerald); font-weight:700;">Loading...</span></div></div>
+                <div class="modal-item"><div class="modal-item-row"><span>Support Fee Allocation (8%):</span> <span style="color: var(--neon-emerald); font-weight:700;">Active On-Chain</span></div></div>
+                <div style="font-size: 10px; color: var(--text-muted); text-align:center; margin-top:4px;">Guarantees pro-rata capital restitution for net-negative participants at 21M volume sunset or 90-day inactivity release.</div>
+                <button class="execute-btn" style="margin-top: 8px; background: rgba(255,51,102,0.2); color: #ff3366; border: 1px solid rgba(255,51,102,0.4); font-size:11px;" onclick="claimEmergencyReliefModal()">🛡️ Claim 90-Day Emergency Relief</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Whitepaper Modal -->
+    <div id="whitepaperModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Protocol Whitepaper</div>
+                <button class="close-modal" onclick="closeModal('whitepaperModal')">[✕]</button>
+            </div>
+            <div class="modal-body" id="whitepaperModalBody"></div>
+        </div>
+    </div>
+
+    <!-- 9. FAQs Modal -->
+    <div id="faqModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Protocol FAQs</div>
+                <button class="close-modal" onclick="closeModal('faqModal')">[✕]</button>
+            </div>
+            <div class="modal-body" id="faqModalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                if (modalId === 'feedModal') loadCommunityFeed();
+                if (modalId === 'monitorModal') loadGlobalProtocolMonitor();
+            } else {
+                console.error("Modal not found:", modalId);
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        }
+
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+
+        // Polygon-only configuration. The React host injects the environment-selected Polygon network before wallet initialization.
+        let MOCK_USDT_ADDRESS = "";
+        let SAFETY_VAULT_ADDRESS = "";
+        let GHM21_PROTOCOL_ADDRESS = "";
+        let OPERATIONS_WALLET_FALLBACK = "";
+        let DEFAULT_UPLINER = "";
+        let ACTIVE_CHAIN_CONFIG = { mode: 'polygon-mainnet', chainId: 137, chainHex: '0x89', chainName: 'Polygon Mainnet', nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 }, rpcUrl: 'https://polygon-bor-rpc.publicnode.com', explorerUrl: 'https://polygonscan.com/', apiBaseUrl: 'http://localhost:4000' };
+        const AUDITOR_SIGN_OFF = "0x985cC42B9790CF0AE053e1Be7DA281505219Cc4F";
+        const AUDITOR_CHANNEL = "@GHM21_tasks";
+        const LOH_CHANNEL = "@GHM21_loh";
+        const MAIN_CHANNEL = "@GHM21_CHNL";
+        const BOT_TOKEN = ""; // Intentionally unused in the browser; Telegram token is server-only.
+
+
+
+        const PROTOCOL_ABI = [
+            { "inputs": [{ "internalType": "address", "name": "_usdtToken", "type": "address" }, { "internalType": "address", "name": "_safetyNetVault", "type": "address" }, { "internalType": "address", "name": "_operationsWallet", "type": "address" }, { "internalType": "address", "name": "_auditorAddress", "type": "address" }], "stateMutability": "nonpayable", "type": "constructor" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "node", "type": "address" }], "name": "AcademyGraduated", "type": "event" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "node", "type": "address" }, { "indexed": false, "internalType": "bool", "name": "isPaused", "type": "bool" }], "name": "AccountPaused", "type": "event" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "oldAuditor", "type": "address" }, { "indexed": true, "internalType": "address", "name": "newAuditor", "type": "address" }], "name": "AuditorUpdated", "type": "event" },
+            { "inputs": [], "name": "autoGraduateSchool", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "claimEmergencyRelief", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "claimRestitution", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "address[]", "name": "_managers", "type": "address[]" }, { "internalType": "uint256[]", "name": "_amounts", "type": "uint256[]" }], "name": "distributeManagerSurplus", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "node", "type": "address" }], "name": "LOHSubmitted", "type": "event" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "manager", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "ManagerSurplusClaimed", "type": "event" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "node", "type": "address" }, { "indexed": true, "internalType": "address", "name": "upliner", "type": "address" }], "name": "NodeRegistered", "type": "event" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "seeker", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "remainingBalance", "type": "uint256" }], "name": "PartialRequeueRecorded", "type": "event" },
+            { "inputs": [{ "internalType": "uint256", "name": "_feeAmount", "type": "uint256" }, { "internalType": "string", "name": "_purpose", "type": "string" }], "name": "payFastPass", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "uint256", "name": "_amount", "type": "uint256" }, { "internalType": "uint256", "name": "", "type": "uint256" }], "name": "provideHelp", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "address", "name": "_upliner", "type": "address" }], "name": "registerNode", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "participant", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "deficitAmount", "type": "uint256" }], "name": "RestitutionClaimed", "type": "event" },
+            { "inputs": [{ "internalType": "address", "name": "_newAuditor", "type": "address" }], "name": "setAuditorAddress", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "bool", "name": "_paused", "type": "bool" }], "name": "setProtocolGlobalPause", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "submitLetterOfHappiness", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "string", "name": "_taskTitle", "type": "string" }, { "internalType": "string", "name": "_proofLink", "type": "string" }], "name": "submitTask", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "sweepSurplusToOperations", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "uint256", "name": "_taskId", "type": "uint256" }, { "internalType": "uint256", "name": "_amount", "type": "uint256" }], "name": "tipTask", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "toggleAccountPause", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "triggerDormantEmergencyState", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "uint256", "name": "_taskId", "type": "uint256" }], "name": "verifyTask", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "address", "name": "account", "type": "address" }], "name": "getNode", "outputs": [{ "components": [{ "internalType": "address", "name": "upliner", "type": "address" }, { "internalType": "uint256", "name": "currentTier", "type": "uint256" }, { "internalType": "uint256", "name": "totalPHProvided", "type": "uint256" }, { "internalType": "uint256", "name": "totalGHReceived", "type": "uint256" }, { "internalType": "uint256", "name": "cycleStep", "type": "uint256" }, { "internalType": "uint256", "name": "cooldownExpiry", "type": "uint256" }, { "internalType": "uint256", "name": "pendingBalance", "type": "uint256" }, { "internalType": "bool", "name": "isGraduated", "type": "bool" }, { "internalType": "bool", "name": "isPaused", "type": "bool" }, { "internalType": "bool", "name": "hasProvidedHelp", "type": "bool" }, { "internalType": "bool", "name": "isActive", "type": "bool" }, { "internalType": "bool", "name": "hasPendingLOH", "type": "bool" }], "internalType": "struct GHM21Protocol.Node", "name": "", "type": "tuple" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [], "name": "getQueueLength", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [], "name": "getTaskSubmissionsCount", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [{ "internalType": "uint256", "name": "_index", "type": "uint256" }], "name": "fifoQueue", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [], "name": "totalProtocolVolume", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+        ];
+
+        const VAULT_ABI = [
+            { "inputs": [], "name": "claimEmergencyRelief", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "getVaultBalance", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [], "name": "triggerDormantEmergencyState", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [], "name": "sweepSurplusToOperations", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
+        ];
+
+        const ERC20_ABI = [
+            { "inputs": [{ "internalType": "address", "name": "spender", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }], "name": "approve", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" },
+            { "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }, { "internalType": "address", "name": "spender", "type": "address" }], "name": "allowance", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+            { "inputs": [{ "internalType": "address", "name": "account", "type": "address" }], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }
+        ];
+
+        let provider, signer, userWalletAddress = "", protocolContract, usdtContract, vaultContract;
+        let userTelegramId = "";
+
+        // Fail safely before any contract read/write if the configured address
+        // has no bytecode on the expected network. An ethers BAD_DATA result
+        // with value "0x" commonly indicates this deployment/config mismatch.
+        async function assertContractDeployment(readProvider, address, label) {
+            if (!readProvider || typeof readProvider.getNetwork !== 'function' || typeof readProvider.getCode !== 'function') {
+                throw new Error('Blockchain provider is not ready. Please reconnect your wallet and try again.');
+            }
+            const network = await readProvider.getNetwork();
+            if (Number(network.chainId) !== Number(ACTIVE_CHAIN_CONFIG.chainId)) {
+                throw new Error('Wrong network. Please switch to ' + ACTIVE_CHAIN_CONFIG.chainName + ' (chain ID ' + ACTIVE_CHAIN_CONFIG.chainId + ').');
+            }
+            if (!ethers.isAddress(address)) {
+                throw new Error(label + ' address is not configured for ' + ACTIVE_CHAIN_CONFIG.chainName + '. Add the correct deployed address to the matching client environment file.');
+            }
+            const code = await readProvider.getCode(address);
+            if (!code || code === '0x' || code === '0x0') {
+                throw new Error(label + ' contract was not found at ' + address + ' on ' + ACTIVE_CHAIN_CONFIG.chainName + '. Verify that the contract is deployed on this network.');
+            }
+        }
+
+        async function assertProtocolDeployment(readProvider) {
+            await assertContractDeployment(readProvider, GHM21_PROTOCOL_ADDRESS, 'GHM21 protocol');
+        }
+        let lohPending = false;
+        let parsedUplinerFromRef = DEFAULT_UPLINER;
+        let lastKnownGHReceived = 0n;
+        let hasPassedExam = false; 
+        let customGraduateAlias = "";
+
+        window.addEventListener('load', async () => {
+            const pathSegments = window.location.pathname.split('/');
+            const refIdx = pathSegments.indexOf('ref');
+            if (refIdx !== -1 && pathSegments[refIdx + 1] && ethers.isAddress(pathSegments[refIdx + 1])) {
+                parsedUplinerFromRef = pathSegments[refIdx + 1];
+            }
+
+
+            autoDetectUserCountry();
+
+            // Wallets are intentionally NOT auto-connected on page load. The
+            // user must click Connect and choose a specific wallet in the parent
+            // React wallet picker (EIP-6963) or WalletConnect modal.
+            renderSchool();
+            renderWhitepaper();
+            renderFAQs();
+            renderTasksModal();
+            updateSurchargePreview();
+
+            setInterval(() => {
+                if (protocolContract) {
+                    refreshOnChainData();
+                }
+            }, 6000);
+        });
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+
+        async function autoDetectUserCountry() {
+            try {
+                const res = await fetch("https://ipapi.co/json/");
+                const data = await res.json();
+                if (data && data.country_code && data.country_name) {
+                    const select = document.getElementById('lohCountrySelect');
+                    if (select) {
+                        for (let opt of select.options) {
+                            if (opt.value.startsWith(data.country_code)) {
+                                select.value = opt.value;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log("Geo IP lookup fallback.");
+            }
+        }
+
+        function getInjectedEthereumProvider() {
+            if (typeof window === 'undefined') return null;
+            // In the React-hosted website, only use the provider explicitly
+            // selected in the wallet picker. Never pick the last injected wallet.
+            if (window.__GHM21_SELECTED_PROVIDER__) return window.__GHM21_SELECTED_PROVIDER__;
+            if (window.parent && window.parent !== window) return null;
+            if (window.ethereum) {
+                if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+                    // Direct legacy-file mode only. The React app uses the explicit
+                    // EIP-6963 picker instead of this compatibility fallback.
+                    return window.ethereum.providers.length === 1 ? window.ethereum.providers[0] : null;
+                }
+                return window.ethereum;
+            }
+            if (window.web3 && window.web3.currentProvider) return window.web3.currentProvider;
+            return null;
+        }
+
+        async function connectDynamicWallet(isAutoReconnect = false) {
+            // Once connected, the header opens account actions (including Disconnect),
+            // not the wallet chooser. The chooser is only for a disconnected session.
+            if (window.parent && window.parent !== window && !isAutoReconnect) {
+                if (userWalletAddress) {
+                    window.parent.postMessage({ type: 'GHM21_OPEN_CONNECTED_MENU', address: userWalletAddress }, window.location.origin);
+                } else {
+                    window.parent.postMessage({ type: 'GHM21_OPEN_WALLET' }, window.location.origin);
+                }
+                return;
+            }
+
+            const runtimeConfig = window.__GHM21_CONFIG__;
+            if (runtimeConfig) {
+                ACTIVE_CHAIN_CONFIG = runtimeConfig;
+                MOCK_USDT_ADDRESS = runtimeConfig.usdtAddress || '';
+                GHM21_PROTOCOL_ADDRESS = runtimeConfig.protocolAddress || '';
+                SAFETY_VAULT_ADDRESS = runtimeConfig.vaultAddress || '';
+                OPERATIONS_WALLET_FALLBACK = runtimeConfig.operationsAddress || '';
+                DEFAULT_UPLINER = runtimeConfig.defaultUpliner || runtimeConfig.operationsAddress || '';
+                if (!ethers.isAddress(parsedUplinerFromRef)) parsedUplinerFromRef = DEFAULT_UPLINER;
+            }
+
+            const rawProvider = getInjectedEthereumProvider();
+            if (!rawProvider) {
+                alert("No wallet was selected. Click Connect and choose a wallet.");
+                return;
+            }
+
+            try {
+                provider = new ethers.BrowserProvider(rawProvider, "any");
+                if (!isAutoReconnect) {
+                    await rawProvider.request({ method: 'eth_requestAccounts' });
+                }
+                // This project uses Polygon Mainnet in every environment.
+                let activeChainId = await rawProvider.request({ method: 'eth_chainId' });
+                if (Number.parseInt(activeChainId, 16) !== Number(ACTIVE_CHAIN_CONFIG.chainId)) {
+                    try {
+                        await rawProvider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: ACTIVE_CHAIN_CONFIG.chainHex }] });
+                    } catch (switchError) {
+                        if (switchError && switchError.code === 4902) {
+                            await rawProvider.request({ method: 'wallet_addEthereumChain', params: [{
+                                chainId: ACTIVE_CHAIN_CONFIG.chainHex,
+                                chainName: ACTIVE_CHAIN_CONFIG.chainName,
+                                nativeCurrency: ACTIVE_CHAIN_CONFIG.nativeCurrency,
+                                rpcUrls: [ACTIVE_CHAIN_CONFIG.rpcUrl],
+                                blockExplorerUrls: [ACTIVE_CHAIN_CONFIG.explorerUrl]
+                            }] });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                    activeChainId = await rawProvider.request({ method: 'eth_chainId' });
+                    if (Number.parseInt(activeChainId, 16) !== Number(ACTIVE_CHAIN_CONFIG.chainId)) {
+                        throw new Error('Please switch your wallet to ' + ACTIVE_CHAIN_CONFIG.chainName + ' (chain ID ' + ACTIVE_CHAIN_CONFIG.chainId + ').');
+                    }
+                    provider = new ethers.BrowserProvider(rawProvider, 'any');
+                }
+                signer = await provider.getSigner();
+                userWalletAddress = await signer.getAddress();
+                
+                const masked = userWalletAddress.substring(0, 6) + "..." + userWalletAddress.substring(userWalletAddress.length - 4);
+                const walletBtnText = document.getElementById('walletButtonText');
+                if (walletBtnText) walletBtnText.innerText = masked;
+
+                const currentDomain = window.location.origin;
+                const refInput = document.getElementById('userReferralInput');
+                if (refInput) refInput.value = currentDomain + "/ref/" + userWalletAddress;
+
+                try {
+                    await ensureApiSession();
+                    await migrateLegacyLocalData();
+                    const profileResult = await apiRequest('/api/profile/me');
+                    const savedTg = profileResult.user?.telegramHandle || '';
+                    userTelegramId = savedTg;
+                    const savedTier = profileResult.user?.profile?.selectedTier;
+                    if (savedTier && document.getElementById('phAmount')) document.getElementById('phAmount').value = savedTier;
+                    const savedUpliner = profileResult.user?.profile?.referralUpliner;
+                    if (savedUpliner && ethers.isAddress(savedUpliner)) parsedUplinerFromRef = savedUpliner;
+                    const tgInput = document.getElementById('telegramIdInput');
+                    if (tgInput) tgInput.value = savedTg;
+                } catch (profileError) {
+                    console.warn('MongoDB profile sign-in/load skipped:', profileError.message);
+                }
+
+                // Polygon addresses are deliberately blank until deployments for the selected Polygon network are configured.
+                // A wallet can connect without contract addresses, but on-chain actions
+                // remain disabled until this network's deployments are configured.
+                if (!ethers.isAddress(GHM21_PROTOCOL_ADDRESS) || !ethers.isAddress(MOCK_USDT_ADDRESS) || !ethers.isAddress(SAFETY_VAULT_ADDRESS)) {
+                    protocolContract = null;
+                    usdtContract = null;
+                    vaultContract = null;
+                    updateAuditorMonitorNav();
+                    alert("Wallet connected on " + ACTIVE_CHAIN_CONFIG.chainName + ", but contract addresses are not configured for this network. Deploy the protocol, token and vault on this Polygon network and add their addresses to the matching client environment file before using on-chain features.");
+                    return;
+                }
+
+                protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, ERC20_ABI, signer);
+                vaultContract = new ethers.Contract(SAFETY_VAULT_ADDRESS, VAULT_ABI, signer);
+
+                updateAuditorMonitorNav();
+                await refreshOnChainData();
+
+                if (userTelegramId) {
+                    await sendTelegramAlert(userTelegramId, "🔐 GHM21 Login Alert: Wallet successfully connected (" + masked + ") to " + ACTIVE_CHAIN_CONFIG.chainName + ".");
+                }
+                await broadcastToChannel(MAIN_CHANNEL, "🟢 *Node Connected*\nWallet: `" + masked + "`");
+
+                if (!isAutoReconnect) alert("✅ Wallet Connected Successfully: " + masked);
+            } catch (error) {
+                console.error("Dynamic wallet connection failed:", error);
+                if (!isAutoReconnect) alert("❌ Wallet connection failed: " + (error?.shortMessage || error?.message || 'Please retry from your wallet.'));
+            }
+        }
+
+        function disconnectLegacyWallet() {
+            provider = null;
+            try { delete window.__GHM21_SELECTED_PROVIDER__; } catch (e) { window.__GHM21_SELECTED_PROVIDER__ = null; }
+            signer = null;
+            protocolContract = null;
+            usdtContract = null;
+            vaultContract = null;
+            userWalletAddress = '';
+            const walletBtnText = document.getElementById('walletButtonText');
+            if (walletBtnText) walletBtnText.innerText = '[ CONNECT ]';
+            const refInput = document.getElementById('userReferralInput');
+            if (refInput) refInput.value = 'Connect Wallet';
+        }
+
+
+        async function sendTelegramAlert(chatId, message) {
+            if (!BOT_TOKEN) { console.warn("Telegram notifications are disabled until the protected backend integration is configured."); return; }
+            try {
+                await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
+                });
+            } catch (e) {
+                console.log("Telegram alert dispatch failed:", e);
+            }
+        }
+
+        async function broadcastToChannel(channel, message) {
+            if (!BOT_TOKEN) { console.warn("Telegram notifications are disabled until the protected backend integration is configured."); return; }
+            try {
+                await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: channel, text: message, parse_mode: 'Markdown' })
+                });
+            } catch (e) {
+                console.log("Channel broadcast failed:", e);
+            }
+        }
+
+        async function broadcastToChannelWithMedia(channel, caption, fileInputId) {
+            if (!BOT_TOKEN) { console.warn("Telegram notifications are disabled until the protected backend integration is configured."); return; }
+            try {
+                const fileInput = document.getElementById(fileInputId);
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const formData = new FormData();
+                    formData.append('chat_id', channel);
+                    formData.append('caption', caption);
+                    formData.append('parse_mode', 'Markdown');
+                    
+                    const isVideo = file.type.startsWith('video/');
+                    formData.append(isVideo ? 'video' : 'photo', file);
+
+                    const endpoint = isVideo ? 'sendVideo' : 'sendPhoto';
+                    await fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/" + endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    await broadcastToChannel(channel, caption);
+                }
+            } catch (e) {
+                console.log("Media broadcast failed:", e);
+                await broadcastToChannel(channel, caption);
+            }
+        }
+
+        async function observeTargetAccount() {
+            const target = document.getElementById('observeAddressInput').value.trim();
+            const box = document.getElementById('inspectResultBox');
+            if (!ethers.isAddress(target)) {
+                alert("Please enter a valid Ethereum address (0x...).");
+                return;
+            }
+            try {
+                box.style.display = 'block';
+                box.innerHTML = "Querying on-chain node data...";
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const node = await protocolContract.getNode(target);
+                
+                let directCount = 0;
+                let rankVal = 0;
+                try {
+                    const ext = await protocolContract.nodeExt(target);
+                    directCount = Number(ext.directCount || 0);
+                    rankVal = Number(ext.rank || 0);
+                } catch(e) {}
+
+                const rankNames = ["Member", "Guider", "Leader", "Manager"];
+                let sponsorAddr = node.upliner;
+                if (!sponsorAddr || sponsorAddr === ethers.ZeroAddress) {
+                    sponsorAddr = OPERATIONS_WALLET_FALLBACK + " (Operations Fallback)";
+                }
+
+                box.innerHTML = "<b>Node Address:</b> " + target + "<br>" +
+                    "<b>Sponsor / Upliner:</b> " + sponsorAddr + "<br>" +
+                    "<b>Active:</b> " + (node.isActive ? 'Yes (Active)' : 'No') + "<br>" +
+                    "<b>Current Tier:</b> " + ethers.formatEther(node.currentTier) + " USDT<br>" +
+                    "<b>Pending Balance:</b> " + ethers.formatEther(node.pendingBalance) + " USDT<br>" +
+                    "<b>Total PH Provided:</b> " + ethers.formatEther(node.totalPHProvided) + " USDT<br>" +
+                    "<b>Total GH Received:</b> " + ethers.formatEther(node.totalGHReceived) + " USDT<br>" +
+                    "<b>Cycle Step:</b> " + node.cycleStep.toString() + "/3<br>" +
+                    "<b>Pending LOH:</b> " + (node.hasPendingLOH ? 'Yes (Inactive)' : 'None (Active)') + "<br>" +
+                    "<b>Leadership Rank:</b> " + (rankNames[rankVal] || 'Member') + " | <b>Direct Team:</b> " + directCount + " Nodes";
+            } catch (err) {
+                box.innerHTML = "Error querying node data: " + (err.reason || err.message);
+            }
+        }
+
+        function updateAuditorMonitorNav() {
+            const monitorNavItem = document.getElementById('monitorNavItem');
+            const mobileMonitorNavItem = document.getElementById('mobileMonitorNavItem');
+            const connectedAddr = (userWalletAddress || "").trim().toLowerCase();
+            const targetAuditor = (AUDITOR_SIGN_OFF || "").trim().toLowerCase();
+            if (connectedAddr === targetAuditor) {
+                if (monitorNavItem) monitorNavItem.style.display = 'inline-block';
+                if (mobileMonitorNavItem) mobileMonitorNavItem.style.display = 'block';
+                const adminPanel = document.getElementById('adminRotationPanel');
+                if (adminPanel) adminPanel.style.display = 'flex';
+            } else {
+                if (monitorNavItem) monitorNavItem.style.display = 'none';
+                if (mobileMonitorNavItem) mobileMonitorNavItem.style.display = 'none';
+                const adminPanel = document.getElementById('adminRotationPanel');
+                if (adminPanel) adminPanel.style.display = 'none';
+            }
+        }
+
+        async function rotateAuditorAddress() {
+            const newAuditor = document.getElementById('newAuditorInput').value.trim();
+            if (!ethers.isAddress(newAuditor)) return alert("Please enter a valid Ethereum address.");
+            try {
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const txRequest = await protocolContract.setAuditorAddress.populateTransaction(newAuditor, { gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txRequest);
+                await tx.wait();
+                alert("🛡️ Auditor address successfully rotated on-chain!");
+                document.getElementById('newAuditorInput').value = "";
+            } catch (err) {
+                alert("Rotation failed: " + (err.reason || err.message));
+            }
+        }
+
+        async function toggleContractPause() {
+            try {
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const currentStatus = await protocolContract.protocolPaused();
+                const txReq = await protocolContract.setProtocolGlobalPause.populateTransaction(!currentStatus, { gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txReq);
+                await tx.wait();
+                alert("🛡️ Protocol global pause state successfully toggled to: " + (!currentStatus));
+            } catch (err) {
+                alert("Pause toggle failed: Only authorized operations accounts can execute global pause.");
+            }
+        }
+
+        async function requestEmergencyGrace() {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            try {
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const txReq = await protocolContract.toggleAccountPause.populateTransaction({ gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txReq);
+                await tx.wait();
+                recordTxHistory("Emergency Grace", "$5.00 USDT", "Confirmed ✓");
+                alert("🛡️ Emergency Grace Period status successfully updated on-chain!");
+                refreshOnChainData();
+            } catch (err) {
+                alert("Grace period request failed: " + (err.reason || err.message));
+            }
+        }
+
+        async function claimRestitution() {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            try {
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const txRequest = await protocolContract.claimRestitution.populateTransaction({ gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txRequest);
+                await tx.wait();
+                recordTxHistory("Restitution Claim", "Deficit", "Confirmed ✓");
+                alert("🛡️ Sunset restitution deficit claimed successfully from Safety Net Vault!");
+                refreshOnChainData();
+            } catch (err) {
+                alert("Restitution claim failed: " + (err.reason || err.message));
+            }
+        }
+
+        async function claimEmergencyReliefModal() {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            try {
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const txReq = await protocolContract.claimEmergencyRelief.populateTransaction({ gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txReq);
+                await tx.wait();
+                recordTxHistory("Emergency Relief", "Claimed", "Confirmed ✓");
+                alert("🛡️ 90-Day Emergency Relief successfully claimed from vault!");
+                refreshOnChainData();
+            } catch (err) {
+                alert("Emergency relief claim failed: " + (err.reason || err.message));
+            }
+        }
+
+        async function refreshOnChainData() {
+            if (!ethers.isAddress(GHM21_PROTOCOL_ADDRESS)) return;
+            if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+            
+            const activeProv = provider || (window.ethereum ? new ethers.BrowserProvider(window.ethereum) : null);
+            if (activeProv) {
+                try {
+                    const readContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, activeProv);
+                    let vol = await readContract.totalProtocolVolume();
+                    const volEl = document.getElementById('protocolVolumeDisplay');
+                    if (volEl) volEl.innerText = ethers.formatEther(vol) + " USDT";
+                } catch(e) {}
+            }
+
+            if (!protocolContract) return;
+
+            try {
+                try {
+                    let vBal = 0n;
+                    try { vBal = await vaultContract.getVaultBalance(); } catch(e) { vBal = await usdtContract.balanceOf(SAFETY_VAULT_ADDRESS); }
+                    const vBalEl = document.getElementById('vaultBalanceDisplay');
+                    if (vBalEl) vBalEl.innerText = ethers.formatEther(vBal) + " USDT";
+                } catch(e) {}
+
+                let currentActiveSeeker = "";
+                let qLen = 0n;
+                try {
+                    qLen = await protocolContract.getQueueLength();
+                    const qLenEl = document.getElementById('queueLengthDisplay');
+                    if (qLenEl) qLenEl.innerText = qLen.toString() + " Nodes";
+
+                    let userPositionStr = "Not in Queue";
+                    if (qLen > 0n) {
+                        let validActiveFound = false;
+                        for (let i = 0; i < Number(qLen); i++) {
+                            const queueAddr = await protocolContract.fifoQueue(i);
+                            const qNode = await protocolContract.getNode(queueAddr);
+                            if (qNode && qNode.isActive && !qNode.hasPendingLOH) {
+                                currentActiveSeeker = queueAddr.toLowerCase();
+                                const maskedSeeker = queueAddr.substring(0, 6) + "..." + queueAddr.substring(queueAddr.length - 4);
+                                const seekerAddrEl = document.getElementById('targetSeekerAddr');
+                                if (seekerAddrEl) seekerAddrEl.innerHTML = '<span style="color:var(--electric-cyan);">' + maskedSeeker + '</span> <button class="copy-btn" onclick="copyToClipboard(\'' + queueAddr + '\')" style="padding:2px 4px;"><svg viewBox="0 0 24 24" style="width:10px; height:10px; fill:currentColor;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>';
+                                
+                                let seekerTier = 20n * 10n**18n;
+                                if (qNode.currentTier > 0n) seekerTier = qNode.currentTier;
+
+                                const seeker65Need = (seekerTier * 65n) / 100n;
+                                const dispatchEl = document.getElementById('seekingDispatchNeed');
+                                if (dispatchEl) dispatchEl.innerText = ethers.formatEther(seeker65Need) + " USDT";
+                                validActiveFound = true;
+                                break;
+                            }
+                        }
+                        if (!validActiveFound) {
+                            const seekerAddrEl = document.getElementById('targetSeekerAddr');
+                            if (seekerAddrEl) seekerAddrEl.innerText = "No Active Seeker";
+                        }
+
+                        if (userWalletAddress) {
+                            for (let i = 0; i < Number(qLen); i++) {
+                                const queueAddr = await protocolContract.fifoQueue(i);
+                                if (queueAddr.toLowerCase() === userWalletAddress.toLowerCase()) {
+                                    userPositionStr = "#" + (i + 1) + " in Line";
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        const seekerAddrEl = document.getElementById('targetSeekerAddr');
+                        if (seekerAddrEl) seekerAddrEl.innerText = "Queue Empty";
+                        const dispatchEl = document.getElementById('seekingDispatchNeed');
+                        if (dispatchEl) dispatchEl.innerText = "0.00 USDT";
+                    }
+                    const userPosEl = document.getElementById('userQueuePositionDisplay');
+                    if (userPosEl) userPosEl.innerText = userPositionStr;
+                } catch(e) {}
+
+                if (userWalletAddress) {
+                    let nodeData = { isActive: false, totalPHProvided: 0n, totalGHReceived: 0n, currentTier: 0n, pendingBalance: 0n, hasPendingLOH: false, upliner: ethers.ZeroAddress, cycleStep: 0n };
+                    try { nodeData = await protocolContract.getNode(userWalletAddress); } catch(e) {}
+
+                    let extData = { hasClaimedRestitution: false, rank: 0, directCount: 0, activeWindowExpiry: 0n };
+                    try { extData = await protocolContract.nodeExt(userWalletAddress); } catch(e) {}
+
+                    if (userTelegramId && lastKnownGHReceived > 0n && nodeData.totalGHReceived > lastKnownGHReceived) {
+                        const payoutDelta = nodeData.totalGHReceived - lastKnownGHReceived;
+                        const payoutFormatted = ethers.formatEther(payoutDelta);
+                        await sendTelegramAlert(userTelegramId, "⚡ *GHM21 Notification*\nYou have received a Get Help payout of *" + payoutFormatted + " USDT*!");
+                    }
+                    lastKnownGHReceived = nodeData.totalGHReceived;
+
+                    if (extData.activeWindowExpiry > 0n) {
+                        const expirySec = Number(extData.activeWindowExpiry);
+                        const nowSec = Math.floor(Date.now() / 1000);
+                        const diffSec = expirySec - nowSec;
+                        const countdownEl = document.getElementById('activenessCountdown');
+                        if (countdownEl) {
+                            if (diffSec > 0) {
+                                const mins = Math.floor(diffSec / 60);
+                                const secs = diffSec % 60;
+                                countdownEl.innerText = mins + "m " + (secs < 10 ? "0" : "") + secs + "s";
+                            } else {
+                                countdownEl.innerText = "EXPIRED ⚠️";
+                            }
+                        }
+                    }
+
+                    let sponsorDisplayVal = nodeData.upliner;
+                    if (!sponsorDisplayVal || sponsorDisplayVal === ethers.ZeroAddress) {
+                        sponsorDisplayVal = OPERATIONS_WALLET_FALLBACK;
+                    }
+                    const sponsorDispEl = document.getElementById('nodeSponsorDisplay');
+                    if (sponsorDispEl) {
+                        const maskedSp = sponsorDisplayVal.substring(0, 6) + "..." + sponsorDisplayVal.substring(sponsorDisplayVal.length - 4);
+                        sponsorDispEl.innerHTML = maskedSp + ' <button class="copy-btn" onclick="copyToClipboard(\'' + sponsorDisplayVal + '\')" style="padding:2px 4px;"><svg viewBox="0 0 24 24" style="width:10px; height:10px; fill:currentColor;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>';
+                    }
+
+                    const currentTierNum = Number(ethers.formatEther(nodeData.currentTier || 0n));
+                    const ghValNum = Number(ethers.formatEther(nodeData.totalGHReceived || 0n));
+                    const phValNum = Number(ethers.formatEther(nodeData.totalPHProvided || 0n));
+
+                    const activeTierVal = currentTierNum > 0 ? currentTierNum : (phValNum > 0 ? phValNum : 0);
+                    const totalExpectedEntitlement = activeTierVal * 0.65 * 3;
+                    let pendingBalanceDynamic = totalExpectedEntitlement - ghValNum;
+                    if (pendingBalanceDynamic < 0) pendingBalanceDynamic = 0;
+                    if (activeTierVal === 0) pendingBalanceDynamic = 0.00;
+
+                    const pendingBalEl = document.getElementById('userPendingBalanceDisplay');
+                    if (pendingBalEl) pendingBalEl.innerText = pendingBalanceDynamic.toFixed(2) + " USDT";
+
+                    let targetRecommit = currentTierNum > 0 ? (currentTierNum / 2) : 20;
+                    if (targetRecommit < 10) targetRecommit = 10;
+
+                    const recommitEl = document.getElementById('nextRecommitDisplay');
+                    if (recommitEl) recommitEl.innerText = currentTierNum > 0 ? "$" + targetRecommit.toFixed(2) + " USDT" : "No Active Tier";
+
+                    const phInput = document.getElementById('phAmount');
+                    if (phInput && currentTierNum > 0 && phInput.value == "20") {
+                        phInput.value = targetRecommit;
+                        updateSurchargePreview();
+                    }
+
+                    const totalPhEl = document.getElementById('nodeTotalPH');
+                    if (totalPhEl) totalPhEl.innerText = "$" + phValNum.toFixed(2) + " USDT";
+                    const totalGhEl = document.getElementById('nodeTotalGH');
+                    if (totalGhEl) totalGhEl.innerText = "$" + ghValNum.toFixed(2) + " USDT";
+
+                    const rankNames = ["Member", "Guider", "Leader", "Manager"];
+                    const rankEl = document.getElementById('nodeActiveRank');
+                    if (rankEl) rankEl.innerText = rankNames[Number(extData.rank || 0)] || "Member";
+
+                    lohPending = nodeData.hasPendingLOH;
+                    updateLOHPendingUI();
+
+                    const lohAmtInput = document.getElementById('lohReceivedAmount');
+                    if (lohAmtInput) {
+                        const autofillAmt = (ghValNum > 0 ? ghValNum.toFixed(2) : "20.00");
+                        lohAmtInput.value = autofillAmt;
+                        applyLOHTemplate('1');
+                    }
+
+                    const isCurrentActiveSeeker = currentActiveSeeker && currentActiveSeeker === userWalletAddress.toLowerCase();
+                    const phExecuteBtn = document.getElementById('phExecuteBtn');
+                    const phTierLabel = document.getElementById('phTierLabel');
+
+                    const isRecommitting = nodeData.isActive && activeTierVal > 0 && ghValNum >= totalExpectedEntitlement;
+
+                    if (phExecuteBtn) {
+                        phExecuteBtn.onclick = executeProvideHelp;
+                        if (isCurrentActiveSeeker) {
+                            phExecuteBtn.classList.remove('blink-btn');
+                            phExecuteBtn.disabled = true;
+                            phExecuteBtn.innerText = "PH Locked: Active Seeker ⏳";
+                        } else if (lohPending) {
+                            phExecuteBtn.classList.add('blink-btn');
+                            phExecuteBtn.disabled = false;
+                            phExecuteBtn.innerText = "PH Locked: Submit LOH Required 📢";
+                            phExecuteBtn.onclick = () => window.openModal('lohModal');
+                        } else {
+                            phExecuteBtn.classList.remove('blink-btn');
+                            phExecuteBtn.disabled = false;
+
+                            const baseAmt = Number(document.getElementById('phAmount').value) || (isRecommitting ? targetRecommit : 20);
+                            const feeAmt = isRecommitting ? baseAmt * 0.08 : 0;
+                            const totalPayment = baseAmt + feeAmt;
+
+                            if (isRecommitting) {
+                                phExecuteBtn.innerText = "RECOMMIT ($" + totalPayment.toFixed(2) + ")";
+                                if (phTierLabel) phTierLabel.innerText = "RECOMMIT MODE ACTIVE";
+                            } else {
+                                phExecuteBtn.innerText = "PROVIDE HELP (PH)";
+                                if (phTierLabel) phTierLabel.innerText = "Provide Help Tier (Min: $20 / $10, Max $5k / $10k, 2.5x Anti-Whale)";
+                            }
+                        }
+                    }
+                }
+                loadCommunityFeed();
+                loadGlobalProtocolMonitor();
+                loadPersistentTransactionHistory();
+            } catch (err) {
+                console.error("Refresh data error:", err);
+            }
+        }
+
+
+        async function loadGlobalProtocolMonitor() {
+            const monitorBody = document.getElementById('globalMonitorBody');
+            const participantCountEl = document.getElementById('monitorParticipantCount');
+            if (!monitorBody) return;
+            monitorBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Querying live protocol ledger...</td></tr>';
+            try {
+                if (!ethers.isAddress(GHM21_PROTOCOL_ADDRESS)) {
+                    monitorBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #ff3366;">Protocol contract address is not configured for ' + ACTIVE_CHAIN_CONFIG.chainName + '.</td></tr>';
+                    return;
+                }
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                if (!protocolContract) {
+                    monitorBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #ff3366;">Connect wallet to query monitor ledger.</td></tr>';
+                    return;
+                }
+
+                const readProvider = (protocolContract.runner && protocolContract.runner.provider) || provider;
+                await assertProtocolDeployment(readProvider);
+                const qLen = await protocolContract.getQueueLength();
+                let html = "";
+                const rankNames = ["Member", "Guider", "Leader", "Manager"];
+                let totalParticipants = Number(qLen);
+                if (participantCountEl) participantCountEl.innerText = totalParticipants;
+
+                if (totalParticipants === 0) {
+                    monitorBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No active nodes in queue.</td></tr>';
+                    return;
+                }
+
+                for (let i = 0; i < Number(qLen); i++) {
+                    const addr = await protocolContract.fifoQueue(i);
+                    const node = await protocolContract.getNode(addr);
+                    let ext = { rank: 0, directCount: 0 };
+                    try { ext = await protocolContract.nodeExt(addr); } catch(e) {}
+
+                    const phVal = Number(ethers.formatEther(node.totalPHProvided));
+                    let status = node.hasPendingLOH ? "Inactive (LOH Pending)" : (node.isActive ? "Active" : "Inactive");
+                    let colorStyle = node.hasPendingLOH ? "color: #ff3366;" : "color: var(--neon-emerald);";
+                    let rankStr = rankNames[Number(ext.rank || 0)] || "Member";
+                    let teamSize = ext.directCount ? ext.directCount.toString() : "0";
+
+                    html += '<tr><td style="' + colorStyle + '">' + addr.substring(0,6) + '...' + addr.substring(38) + '</td><td>' + status + '</td><td>' + rankStr + '</td><td>' + teamSize + ' Nodes</td><td>$' + phVal.toFixed(2) + ' USDT</td><td>Queue Pos #' + (i+1) + '</td></tr>';
+                }
+
+                monitorBody.innerHTML = html;
+            } catch (e) {
+                console.error("Monitor load error:", e);
+                const message = (e && (e.reason || e.shortMessage || e.message)) || 'Unknown error';
+                monitorBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #ff3366;">Error loading monitor ledger: ' + message.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])) + '</td></tr>';
+            }
+        }
+
+        async function executeProvideHelp() {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            if (lohPending) {
+                alert("⚠️ PH Locked: You must submit your Letter of Happiness (LOH) before making new contributions.");
+                window.openModal('lohModal');
+                return;
+            }
+
+            const amountInput = document.getElementById('phAmount').value;
+            const amountNum = Number(amountInput);
+            if (!amountNum || amountNum < 10) {
+                alert("Minimum contribution or recommit is $10 USDT.");
+                return;
+            }
+
+            try {
+                if (!ethers.isAddress(GHM21_PROTOCOL_ADDRESS) || !ethers.isAddress(MOCK_USDT_ADDRESS) || !ethers.isAddress(SAFETY_VAULT_ADDRESS)) {
+                    throw new Error('Provide Help is disabled because contract addresses for ' + ACTIVE_CHAIN_CONFIG.chainName + ' are missing. Deploy the protocol, token and vault on this network and set their addresses in the client environment file first.');
+                }
+                if (!signer) {
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    signer = await provider.getSigner();
+                }
+                if (!protocolContract) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                if (!usdtContract) usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, ERC20_ABI, signer);
+
+                // Preflight both deployments and the exact read method before
+                // any registration, approval, or Provide Help transaction.
+                const readProvider = (signer && signer.provider) || provider;
+                await assertProtocolDeployment(readProvider);
+                await assertContractDeployment(readProvider, MOCK_USDT_ADDRESS, 'Configured USDT token');
+                const qLen = await protocolContract.getQueueLength();
+
+                let nodeData = { isActive: false, totalGHReceived: 0n, currentTier: 0n };
+                try { nodeData = await protocolContract.getNode(userWalletAddress); } catch(e) {}
+
+                const tierVal = Number(ethers.formatEther(nodeData.currentTier || 0n));
+                const ghReceived = Number(ethers.formatEther(nodeData.totalGHReceived || 0n));
+                const totalExpectedEntitlement = tierVal * 0.65 * 3;
+                const isRecommitting = nodeData.isActive && tierVal > 0 && ghReceived >= totalExpectedEntitlement;
+
+                const baseWei = ethers.parseEther(amountInput);
+                const surchargeFeeWei = isRecommitting ? (baseWei * 8n) / 100n : 0n;
+                const totalPaymentWei = baseWei + surchargeFeeWei;
+
+                const userBalance = await usdtContract.balanceOf(userWalletAddress);
+                if (userBalance < totalPaymentWei) {
+                    alert("Insufficient USDT balance in your wallet (includes 8% surcharge fee).");
+                    return;
+                }
+
+                let uplinerToUse = parsedUplinerFromRef;
+                if (qLen === 0n && userWalletAddress.toLowerCase() === DEFAULT_UPLINER.toLowerCase()) {
+                    uplinerToUse = ethers.ZeroAddress;
+                }
+
+                if (!nodeData.isActive && userWalletAddress.toLowerCase() !== DEFAULT_UPLINER.toLowerCase()) {
+                    const regTxRequest = await protocolContract.registerNode.populateTransaction(uplinerToUse, { gasLimit: 300000n });
+                    const regTx = await signer.sendTransaction(regTxRequest);
+                    await regTx.wait();
+                }
+
+                const allowance = await usdtContract.allowance(userWalletAddress, GHM21_PROTOCOL_ADDRESS);
+                if (allowance < totalPaymentWei) {
+                    const approveTx = await usdtContract.approve(GHM21_PROTOCOL_ADDRESS, totalPaymentWei, { gasLimit: 100000n });
+                    await approveTx.wait();
+                }
+
+                const txRequest = await protocolContract.provideHelp.populateTransaction(baseWei, 0, { gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txRequest);
+                await tx.wait();
+
+                const totalPaymentFormatted = ethers.formatEther(totalPaymentWei);
+                recordTxHistory("Provide Help (PH)", "$" + totalPaymentFormatted + " USDT", "Confirmed ✓");
+                if (userTelegramId) {
+                    await sendTelegramAlert(userTelegramId, "✅ GHM21 Notification: Your Provide Help of $" + totalPaymentFormatted + " USDT was successfully executed on-chain!");
+                }
+                await broadcastToChannel(MAIN_CHANNEL, "⚡ *Provide Help Executed*\nNode: `" + userWalletAddress + "`\nAmount: $" + totalPaymentFormatted + " USDT");
+
+                alert("Provide Help executed successfully!");
+                refreshOnChainData();
+            } catch (err) {
+                console.error('Provide Help preflight/transaction error:', err);
+                alert("Provide Help failed: " + (err.reason || err.shortMessage || err.message || 'Unknown error'));
+            }
+        }
+
+        async function updateSurchargePreview() {
+            const inputVal = Number(document.getElementById('phAmount').value) || 20;
+            if (userWalletAddress && typeof saveProfilePreferences === 'function') saveProfilePreferences({ selectedTier: inputVal, referralUpliner: parsedUplinerFromRef || '' });
+            
+            let isRecommit = false;
+            let nodeStep = 1;
+            let expectedRecommit = 0;
+
+            if (userWalletAddress) {
+                try {
+                    if (protocolContract) {
+                        const nodeData = await protocolContract.getNode(userWalletAddress);
+                        nodeStep = Number(nodeData.cycleStep || 1);
+                        const currentTierNum = Number(ethers.formatEther(nodeData.currentTier || 0n));
+                        const ghReceivedNum = Number(ethers.formatEther(nodeData.totalGHReceived || 0n));
+                        if (currentTierNum > 0) {
+                            expectedRecommit = nodeStep >= 3 ? currentTierNum : currentTierNum / 2;
+                            if (expectedRecommit < 10) expectedRecommit = 10;
+                        }
+                        isRecommit = nodeData.isActive && (nodeStep >= 2 || ghReceivedNum >= (currentTierNum * 0.65 * 3)) && Math.round(inputVal) === Math.round(expectedRecommit);
+                    }
+                } catch(e) {}
+            }
+
+            const fee = isRecommit ? inputVal * 0.08 : 0;
+            const total = inputVal + fee;
+            const box = document.getElementById('surchargePreviewBox');
+            if(box) {
+                if (isRecommit) {
+                    box.innerText = "Surcharge Fee: $" + fee.toFixed(2) + " | Total Wallet Payment: $" + total.toFixed(2) + " USDT";
+                } else {
+                    box.innerText = "Surcharge Fee: $0.00 | Total Wallet Payment: $" + inputVal.toFixed(2) + " USDT";
+                }
+            }
+        }
+
+        function setTier(val) {
+            document.getElementById('phAmount').value = val;
+            updateSurchargePreview();
+        }
+
+        function applyLOHTemplate(templateId) {
+            const nameField = document.getElementById('lohName').value || "[Name]";
+            const amtField = document.getElementById('lohReceivedAmount').value || "20.00";
+            const countryVal = document.getElementById('lohCountrySelect').value;
+            const textarea = document.getElementById('lohTextarea');
+            if (templateId === "1") {
+                textarea.value = "Received $" + amtField + " USDT payout from GHM21. Code is law! - " + nameField + " (" + countryVal + ")";
+            } else if (templateId === "2") {
+                textarea.value = "Surplus cascade successfully cleared for $" + amtField + " USDT. Immense gratitude to the GHM21 community! - " + nameField + " (" + countryVal + ")";
+            } else {
+                textarea.value = "Custom payout acknowledgment of $" + amtField + " USDT received successfully by " + nameField + " (" + countryVal + ").";
+            }
+        }
+
+        async function submitLOH() {
+            const nameInput = document.getElementById('lohName');
+            const fileInput = document.getElementById('lohFile');
+            const submitBtn = document.getElementById('lohSubmitBtn');
+
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert("⚠️ Please enter your Full Name or Alias.");
+                nameInput.focus();
+                return;
+            }
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("⚠️ Please attach your proof receipt image or video.");
+                return;
+            }
+
+            try {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "SUBMITTING TO TELEGRAM...";
+
+                const lohText = document.getElementById('lohTextarea').value;
+                const countryVal = document.getElementById('lohCountrySelect').value;
+                const caption = "📢 *New Letter of Happiness (LOH)*\nFrom: " + name + " (" + countryVal + ")\nWallet: `" + userWalletAddress + "`\n\n" + lohText;
+
+                await broadcastToChannelWithMedia(LOH_CHANNEL, caption, 'lohFile');
+
+                submitBtn.innerText = "CONFIRMING ON-CHAIN...";
+
+                if (!protocolContract && signer) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                if (protocolContract) {
+                    const txRequest = await protocolContract.submitLetterOfHappiness.populateTransaction({ gasLimit: 300000n });
+                    const tx = await signer.sendTransaction(txRequest);
+                    await tx.wait();
+                }
+
+                lohPending = false;
+                updateLOHPendingUI();
+                recordTxHistory("Submit LOH", "Verified", "Confirmed ✓");
+                if (userTelegramId) {
+                    await sendTelegramAlert(userTelegramId, "🎉 GHM21 Notification: Your Letter of Happiness has been successfully verified and submitted on-chain!");
+                }
+                alert("🎉 Letter of Happiness submitted successfully! PH is now unlocked.");
+                window.openModal('lohModal');
+                refreshOnChainData();
+            } catch (err) {
+                alert("❌ Submission failed: " + (err.reason || err.message));
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Submit & Broadcast";
+            }
+        }
+
+        function updateLOHPendingUI() {
+            const btn = document.getElementById('lohDashboardBtn');
+            const statusTxt = document.getElementById('lohStatusText');
+            if (!lohPending) {
+                if(btn) { btn.classList.remove('blink-btn'); btn.innerText = "LOH Done ✓"; }
+                if(statusTxt) { statusTxt.innerText = "Done ✓"; statusTxt.style.color = "var(--neon-emerald)"; }
+            } else {
+                if(btn) { btn.classList.add('blink-btn'); btn.innerText = "Submit LOH"; }
+                if(statusTxt) { statusTxt.innerText = "Pending 📢"; statusTxt.style.color = "#ff3366"; }
+            }
+        }
+
+        function copyToClipboard(textToCopy) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    alert("📋 Copied to clipboard successfully!");
+                }).catch(() => fallbackCopyText(textToCopy));
+            } else {
+                fallbackCopyText(textToCopy);
+            }
+        }
+
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("📋 Copied to clipboard successfully!");
+            } catch (err) {
+                alert("❌ Copy failed.");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        const taskDetailsBank = [
+            { title: "Pillar 1: Social Share", desc: "Share on X/Facebook and submit URL.", threshold: 3 },
+            { title: "Pillar 2: Mentorship", desc: "Guide active referrals and submit proof.", threshold: 5 },
+            { title: "Pillar 3: Video Explainer", desc: "Record short video and upload link.", threshold: 7 },
+            { title: "Pillar 4: Table Meeting", desc: "Host huddle and submit notes.", threshold: 10 }
+        ];
+
+        function renderTasksModal() {
+            const tasksBody = document.getElementById('tasksModalBody');
+            if (!tasksBody) return;
+            let html = '<div style="font-size: 11px; color: var(--electric-cyan); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center;"><span>🔒 <b>PoW Pillars & Auditor Gate (@GHM21_tasks):</b></span><button class="execute-btn" style="width:auto; padding:6px 12px; font-size:11px;" onclick="executeBundleFastPass()">⚡ Bundle Fast Pass ($15)</button></div>' +
+                '<div class="feed-card" style="border-left: 3px solid var(--neon-emerald); margin-bottom: 8px;"><div class="modal-item-row"><span style="font-weight:700; color:var(--neon-emerald);">⚡ 1-Click Marketing Kit</span><button class="btn-action cyan" style="font-size:9px; padding:3px 6px;" onclick="downloadMarketingKit()">📥 Download Kit</button></div><div style="font-size:10px; color:var(--text-muted);">Instant banner graphics, text templates & social media swipe copy.</div></div>';
+            
+            taskDetailsBank.forEach((task, index) => {
+                const taskId = index + 1;
+                html += '<div class="feed-card" style="border-left: 3px solid var(--electric-cyan); margin-bottom: 8px;">' +
+                    '<div class="modal-item-row"><span style="font-weight:700; color:var(--titanium-silver);">' + task.title + '</span><button class="btn-action cyan" style="font-size:9px; padding:3px 6px;" onclick="payTaskFastPass(' + taskId + ')">⚡ Fast Pass ($5)</button></div>' +
+                    '<div style="font-size:10px; color:var(--text-muted);">' + task.desc + ' (Threshold: <b>Tips: 0/' + task.threshold + ' + Auditor Sign-Off</b>)</div>' +
+                    '<input type="url" id="taskInput_' + taskId + '" class="custom-input" placeholder="https://..." style="font-size:11px; padding:6px; margin-top:4px;" required>' +
+                    '<input type="file" id="taskFile_' + taskId + '" class="custom-input" accept="image/*,video/*" multiple style="font-size:10px; padding:4px; color:var(--titanium-silver); margin-top:4px;" required>' +
+                    '<button id="taskBtn_' + taskId + '" class="btn-action" style="margin-top:6px;" onclick="submitSpecificTask(' + taskId + ', \'' + task.title.replace(/'/g, "") + '\', ' + task.threshold + ')">Submit Proof</button>' +
+                    '</div>';
+            });
+            tasksBody.innerHTML = html;
+        }
+
+        function downloadMarketingKit() {
+            alert("📥 Downloading GHM21 1-Click Marketing Kit collateral zip...");
+        }
+
+        // FULLY FIXED TASK SUBMISSION WITH ROBUST GLOBAL LOCAL STORAGE PERSISTENCE (Auditor & Members Global Visibility)
+
+        async function payTaskFastPass(taskId) {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            try {
+                const feeWei = ethers.parseEther("5.0");
+                if (!usdtContract) usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, ERC20_ABI, signer);
+                if (!protocolContract) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const allowance = await usdtContract.allowance(userWalletAddress, GHM21_PROTOCOL_ADDRESS);
+                if (allowance < feeWei) {
+                    const approveTx = await usdtContract.approve(GHM21_PROTOCOL_ADDRESS, feeWei, { gasLimit: 100000n });
+                    await approveTx.wait();
+                }
+                const txRequest = await protocolContract.payFastPass.populateTransaction(feeWei, "PILLAR_" + taskId + "_FAST_PASS", { gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txRequest);
+                await tx.wait();
+                recordTxHistory("Fast Pass", "$5.00 USDT", "Confirmed ✓");
+                alert("Fast Pass executed successfully!");
+            } catch (err) { alert("Failed: " + (err.reason || err.message)); }
+        }
+
+        async function executeBundleFastPass() {
+            if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
+            try {
+                const feeWei = ethers.parseEther("15.0");
+                if (!usdtContract) usdtContract = new ethers.Contract(MOCK_USDT_ADDRESS, ERC20_ABI, signer);
+                if (!protocolContract) protocolContract = new ethers.Contract(GHM21_PROTOCOL_ADDRESS, PROTOCOL_ABI, signer);
+                const allowance = await usdtContract.allowance(userWalletAddress, GHM21_PROTOCOL_ADDRESS);
+                if (allowance < feeWei) {
+                    const approveTx = await usdtContract.approve(GHM21_PROTOCOL_ADDRESS, feeWei, { gasLimit: 100000n });
+                    await approveTx.wait();
+                }
+                const txRequest = await protocolContract.payFastPass.populateTransaction(feeWei, "BUNDLE_FAST_PASS", { gasLimit: 300000n });
+                const tx = await signer.sendTransaction(txRequest);
+                await tx.wait();
+                recordTxHistory("Bundle Fast Pass", "$15.00 USDT", "Confirmed ✓");
+                alert("Bundle Fast Pass ($15) executed successfully!");
+            } catch (err) { alert("Failed: " + (err.reason || err.message)); }
+        }
+
+
+        // --- Sunflower School & Strictly Gated Printable Certificate with Once-Off Name Customization ---
+        function renderSchool() {
+            const schoolBody = document.getElementById('schoolModalBody');
+            if (!schoolBody) return;
+            
+            if (!hasPassedExam) {
+                schoolBody.innerHTML = '<div style="font-size: 11px; color: var(--electric-cyan); margin-bottom: 6px;"><b>Sunflower Academy (3 Core Onboarding Modules):</b> Complete these lessons and pass the verification check to unlock and view your official printable graduation diploma.</div>' +
+                    '<div id="schoolModulesList" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>' +
+                    '<button class="execute-btn" onclick="startAcademyExam()" style="margin-top:10px;">Take Verification Check</button>';
+            } else {
+                openPrintableCertificate();
+            }
+            
+            const modList = document.getElementById('schoolModulesList');
+            if (modList) {
+                const titles = [
+                    "Module 1: Dual-Lane Queue & Tranche Slicing", 
+                    "Module 2: Anti-Whale Economic Ceiling (2.5x)", 
+                    "Module 3: PoW Tipping & Auditor Verification Gate"
+                ];
+                const notes = [
+                    "<b>Module 1 Notes:</b> Alternating round-robin queues (Newcomer vs. Surplus) paired with $100 tranche slicing ensure continuous liquidity flow and zero capital bottlenecks.",
+                    "<b>Module 2 Notes:</b> Fresh round entries and remainder top-ups are strictly bounded by a 2.5x ceiling relative to the participant's original starting baseline tier to prevent whale inflation.",
+                    "<b>Module 3 Notes:</b> Community tasks require weighted tips and mandatory human auditor verification sign-off before soulbound graduation and team bonus pool eligibility."
+                ];
+                for(let i=0; i<3; i++) {
+                    modList.innerHTML += '<div class="accordion-header" onclick="toggleAccordion(\'smod_' + i + '\')"><span>' + titles[i] + '</span><span>▼</span></div>' +
+                        '<div id="smod_' + i + '" class="accordion-content">' + notes[i] + '</div>';
+                }
+            }
+        }
+
+        function openPrintableCertificate() {
+            hasPassedExam = true;
+            if (!customGraduateAlias) {
+                customGraduateAlias = userWalletAddress ? (userWalletAddress.substring(0, 6) + "..." + userWalletAddress.substring(38)) : "Honored Participant";
+            }
+            const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const certHtml = '<div id="certificatePrintArea" class="cert-container">' +
+                '<div class="cert-title">SUNFLOWER ACADEMY</div>' +
+                '<div class="cert-subtitle">Certificate of Protocol Graduation & On-Chain Proficiency</div>' +
+                '<div class="cert-body">This official diploma is proudly presented to</div>' +
+                '<div class="cert-name"><input type="text" id="certAliasInput" class="custom-input" value="' + customGraduateAlias + '" onchange="customGraduateAlias=this.value;" style="text-align:center; font-family:var(--font-serif); font-size:20px; background:transparent; border:none; color:#fff;" title="Click to customize name once"></div>' +
+                '<div class="cert-body">For successfully mastering the GHM21 Protocol architecture, completing all core academic modules, and verifying adherence to decentralized P2P mutual aid rules, code-is-law economics, and proof-of-work governance.</div>' +
+                '<div class="cert-footer"><span>Date: ' + dateStr + '</span><span>SBT Hash: Verified On-Chain ✓</span><span>Status: Manager / Graduate</span></div>' +
+                '</div>' +
+                '<div style="text-align:center; margin-top:15px; display:flex; gap:8px; justify-content:center;"><button class="execute-btn" style="width:auto; padding:8px 20px;" onclick="window.print()">🖨️ Print / Download Certificate</button><button class="btn-action cyan" style="padding:8px 16px;" onclick="hasPassedExam=false; renderSchool();">⬅ Back to Modules</button></div>';
+
+            document.getElementById('schoolModalBody').innerHTML = certHtml;
+        }
+
+        function startAcademyExam() {
+            const q1Opts = [{t: "Single Line FIFO", v: "wrong"}, {t: "Dual-Lane Alternating Queue & Tranche Slicing", v: "correct"}, {t: "Centralized Admin Pool", v: "wrong"}].sort(() => Math.random() - 0.5);
+            const q2Opts = [{t: "10x Multiplier", v: "wrong"}, {t: "50x High-Yield Pool", v: "wrong"}, {t: "2.5x Starting Baseline", v: "correct"}].sort(() => Math.random() - 0.5);
+            const q3Opts = [{t: "Automated AI Bot", v: "wrong"}, {t: "Designated Human Auditor (@GHM21_tasks)", v: "correct"}, {t: "Random Smart Contract Address", v: "wrong"}].sort(() => Math.random() - 0.5);
+
+            let html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><div style="font-size: 11px; color: var(--electric-cyan);">Academy Verification Check (3 Questions):</div><button class="btn-action cyan" style="font-size:10px; padding:4px 8px;" onclick="renderSchool()">⬅ Back</button></div>' +
+                '<div class="modal-item"><label>Q1: What prevents capital traps in GHM21?</label><select id="eq_0" class="custom-input" style="font-size:11px; padding:6px;"><option value="' + q1Opts[0].v + '">' + q1Opts[0].t + '</option><option value="' + q1Opts[1].v + '">' + q1Opts[1].t + '</option><option value="' + q1Opts[2].v + '">' + q1Opts[2].t + '</option></select></div>' +
+                '<div class="modal-item"><label>Q2: What is the maximum anti-whale growth ceiling?</label><select id="eq_1" class="custom-input" style="font-size:11px; padding:6px;"><option value="' + q2Opts[0].v + '">' + q2Opts[0].t + '</option><option value="' + q2Opts[1].v + '">' + q2Opts[1].t + '</option><option value="' + q2Opts[2].v + '">' + q2Opts[2].t + '</option></select></div>' +
+                '<div class="modal-item"><label>Q3: Who provides final verification on community tasks?</label><select id="eq_2" class="custom-input" style="font-size:11px; padding:6px;"><option value="' + q3Opts[0].v + '">' + q3Opts[0].t + '</option><option value="' + q3Opts[1].v + '">' + q3Opts[1].t + '</option><option value="' + q3Opts[2].v + '">' + q3Opts[2].t + '</option></select></div>' +
+                '<button class="execute-btn" onclick="gradeAcademyExam()" style="margin-top:10px;">Submit Verification</button>';
+            document.getElementById('schoolModalBody').innerHTML = html;
+        }
+
+        function gradeAcademyExam() {
+            if (document.getElementById('eq_0').value === 'correct' && document.getElementById('eq_1').value === 'correct' && document.getElementById('eq_2').value === 'correct') {
+                hasPassedExam = true;
+                alert("🎉 Congratulations! You have successfully passed all academy exams. Your graduation diploma is now unlocked.");
+                openPrintableCertificate();
+            } else {
+                alert("Incorrect answers selected. Please review and try again.");
+            }
+        }
+
+        function renderWhitepaper() {
+            const wpBody = document.getElementById('whitepaperModalBody');
+            if (!wpBody) return;
+            wpBody.innerHTML = "";
+            const titles = [
+                "1. Core Financial Mechanics & Standardized Percentage Matrix", 
+                "2. The Anti-Whale Economic Ceiling (2.5x Growth Rule)", 
+                "3. Dual-Lane Alternating Queue & Tranche Slicing Engine", 
+                "4. Protocol Health Insurance & Sunset Restitution Program", 
+                "5. Proof of Work (PoW) 4 Core Pillars & Auditor Gate"
+            ];
+            const desc = [
+                "Polygon ERC-20 peer-to-peer aid engine. Use only contracts deployed for the currently selected Polygon network. Incoming fresh Provide Help (PH) contributions instantly split: 65% seeker allocation, 15% welcome rebate, 10% direct sponsor bonus, 4% generational upliner, 3% levels 3-5 matrix, 2% operations, and 1% Safety Net Vault.",
+                "Designed to protect protocol stability against predatory whale inflation. Fresh round entries and fractional remainder top-ups cannot exceed 2.5x a participant's original starting baseline tier.",
+                "Alternating round-robin queues between Newcomer Lane (Lane 1) and Surplus/Recombination Lane (Lane 2), paired with $100 max tranche slicing to eliminate capital bottlenecks and maintain high velocity.",
+                "8% Protocol Health Insurance fees added to recommitments fund Safety Net Vault reserves, guaranteeing automated pro-rata capital restitution for net-negative participants when the 21M volume cap sunset is reached.",
+                "10% digital execution with weighted community tipping thresholds (Pillar 1: 3 tips, Pillar 2: 5 tips, Pillar 3: 7 tips, Pillar 4: 10 tips) and mandatory human auditor verification sign-off."
+            ];
+            for (let i = 0; i < titles.length; i++) {
+                wpBody.innerHTML += '<div class="accordion-header" onclick="toggleAccordion(\'wp_' + i + '\')"><span>' + titles[i] + '</span><span>▼</span></div>' +
+                    '<div id="wp_' + i + '" class="accordion-content">' + desc[i] + '</div>';
+            }
+        }
+
+        function renderFAQs() {
+            const faqBody = document.getElementById('faqModalBody');
+            if (!faqBody) return;
+            faqBody.innerHTML = "";
+            const q = [
+                "How does the Dual-Lane Queue prevent bottlenecks?", 
+                "How does the 2.5x Anti-Whale Ceiling work?", 
+                "What happens when the 21M USDT lifetime volume cap is reached?", 
+                "How does the Human Auditor Verification Gate work?"
+            ];
+            const a = [
+                "It alternates dispatches between newcomers and surplus/pending-balance participants while slicing large donations into $100 blocks to ensure continuous liquidity flow.",
+                "It restricts fresh entries and remainder top-ups to a maximum of 2.5x your starting baseline tier, preventing predatory whale inflation.",
+                "The protocol automatically pauses new registrations, and net-negative participants can instantly claim their capital deficit restitution directly from the Safety Net Vault.",
+                "Community members tip task submissions on-chain with a 70/30 split, but final verification requires explicit human sign-off from the designated auditor address."
+            ];
+            for (let i = 1; i <= q.length; i++) {
+                faqBody.innerHTML += '<div class="accordion-header" onclick="toggleAccordion(\'faq_' + i + '\')"><span>' + q[i-1] + '</span><span>▼</span></div>' +
+                    '<div id="faq_' + i + '" class="accordion-content">' + a[i-1] + '</div>';
+            }
+        }
+
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            if (!content) return;
+            const container = content.closest('.modal-body') || document.body;
+            container.querySelectorAll('.accordion-content').forEach(item => { if (item.id !== id) item.classList.remove('active'); });
+            content.classList.toggle('active');
+        }
+
+        window.onclick = function(event) { if (event.target.classList.contains('modal-overlay')) event.target.style.display = 'none'; }
+    </script>
+    <script src="/legacy/js/database-api.js"></script>
+    <script src="/legacy/js/profile.js"></script>
+    <script src="/legacy/js/transactions.js"></script>
+    <script src="/legacy/js/tasks.js"></script>
+</body>
+</html>
