@@ -18,7 +18,7 @@ export function PublicTaskFeed() {
     <div className="db-task-list">{items.map((item) => <article className="db-task" key={item.id || item._id}>
       <div className="db-task-top"><strong>{item.taskTitle}</strong><span>{item.isVerified ? 'Verified' : 'Pending review'}</span></div>
       <p className="db-muted">Wallet: {item.performerWallet}</p>
-      <p><a href={item.proofLink} target="_blank" rel="noreferrer">Open proof link</a>{(item.attachmentUrls || []).map((file) => <React.Fragment key={file.url}> · <a href={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/$/, '')}${file.url}`} target="_blank" rel="noreferrer">View {file.filename || 'attachment'}</a></React.Fragment>)}</p>
+      <p><a href={item.proofLink} target="_blank" rel="noreferrer">Open proof link</a>{(item.attachmentUrls || []).map((file) => <React.Fragment key={file.url}> · <a href={`${(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')}${file.url}`} target="_blank" rel="noreferrer">View {file.filename || 'attachment'}</a></React.Fragment>)}</p>
       <small>{item.likeCount || 0} likes · {item.tipCount || 0} tips · {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</small>
     </article>)}</div>
   </section>;

@@ -616,8 +616,8 @@
                 <button class="close-modal" onclick="closeModal('vaultModal')">[✕]</button>
             </div>
             <div class="modal-body">
-                <div class="modal-item"><div class="modal-item-row"><span>Vault Address:</span> <span style="color: var(--electric-cyan); font-size:11px;">0xA9162e7E3d25D575EEB75D1291514Ab41BBecA10</span>
-                    <button class="copy-btn" onclick="copyToClipboard('0xA9162e7E3d25D575EEB75D1291514Ab41BBecA10')">
+                <div class="modal-item"><div class="modal-item-row"><span>Vault Address:</span> <span id="vaultAddressDisplay" style="color: var(--electric-cyan); font-size:11px;">Loading Polygon config...</span>
+                    <button class="copy-btn" onclick="copyConfiguredVaultAddress()">
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> COPY
                     </button>
                 </div></div>
@@ -677,7 +677,7 @@
         let GHM21_PROTOCOL_ADDRESS = "";
         let OPERATIONS_WALLET_FALLBACK = "";
         let DEFAULT_UPLINER = "";
-        let ACTIVE_CHAIN_CONFIG = { mode: 'polygon-mainnet', chainId: 137, chainHex: '0x89', chainName: 'Polygon Mainnet', nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 }, rpcUrl: 'https://polygon-bor-rpc.publicnode.com', explorerUrl: 'https://polygonscan.com/', apiBaseUrl: 'http://localhost:4000' };
+        let ACTIVE_CHAIN_CONFIG = { mode: 'polygon-mainnet', chainId: 137, chainHex: '0x89', chainName: 'Polygon Mainnet', nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 }, rpcUrl: 'https://polygon-bor-rpc.publicnode.com', explorerUrl: 'https://polygonscan.com/', apiBaseUrl: '' };
         const AUDITOR_SIGN_OFF = "0x985cC42B9790CF0AE053e1Be7DA281505219Cc4F";
         const AUDITOR_CHANNEL = "@GHM21_tasks";
         const LOH_CHANNEL = "@GHM21_loh";
@@ -760,6 +760,24 @@
         }
         let lohPending = false;
         let parsedUplinerFromRef = DEFAULT_UPLINER;
+        function applyGHM21Config(runtimeConfig) {
+            if (!runtimeConfig) return;
+            window.__GHM21_CONFIG__ = runtimeConfig;
+            ACTIVE_CHAIN_CONFIG = runtimeConfig;
+            MOCK_USDT_ADDRESS = runtimeConfig.usdtAddress || '';
+            GHM21_PROTOCOL_ADDRESS = runtimeConfig.protocolAddress || '';
+            SAFETY_VAULT_ADDRESS = runtimeConfig.vaultAddress || '';
+            OPERATIONS_WALLET_FALLBACK = runtimeConfig.operationsAddress || '';
+            DEFAULT_UPLINER = runtimeConfig.defaultUpliner || runtimeConfig.operationsAddress || '';
+            if (!ethers.isAddress(parsedUplinerFromRef)) parsedUplinerFromRef = DEFAULT_UPLINER;
+            const vaultAddressDisplay = document.getElementById('vaultAddressDisplay');
+            if (vaultAddressDisplay) vaultAddressDisplay.textContent = ethers.isAddress(SAFETY_VAULT_ADDRESS) ? SAFETY_VAULT_ADDRESS : 'Not configured';
+        }
+        window.applyGHM21Config = applyGHM21Config;
+        function copyConfiguredVaultAddress() {
+            if (!ethers.isAddress(SAFETY_VAULT_ADDRESS)) return alert('The Polygon vault address is not configured.');
+            copyToClipboard(SAFETY_VAULT_ADDRESS);
+        }
         let lastKnownGHReceived = 0n;
         let hasPassedExam = false; 
         let customGraduateAlias = "";
@@ -845,16 +863,7 @@
                 return;
             }
 
-            const runtimeConfig = window.__GHM21_CONFIG__;
-            if (runtimeConfig) {
-                ACTIVE_CHAIN_CONFIG = runtimeConfig;
-                MOCK_USDT_ADDRESS = runtimeConfig.usdtAddress || '';
-                GHM21_PROTOCOL_ADDRESS = runtimeConfig.protocolAddress || '';
-                SAFETY_VAULT_ADDRESS = runtimeConfig.vaultAddress || '';
-                OPERATIONS_WALLET_FALLBACK = runtimeConfig.operationsAddress || '';
-                DEFAULT_UPLINER = runtimeConfig.defaultUpliner || runtimeConfig.operationsAddress || '';
-                if (!ethers.isAddress(parsedUplinerFromRef)) parsedUplinerFromRef = DEFAULT_UPLINER;
-            }
+            applyGHM21Config(window.__GHM21_CONFIG__);
 
             const rawProvider = getInjectedEthereumProvider();
             if (!rawProvider) {

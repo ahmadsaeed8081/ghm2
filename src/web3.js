@@ -15,7 +15,7 @@ export const networkConfig = {
   nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
   rpcUrl: (import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-bor-rpc.publicnode.com').trim(),
   explorerUrl: 'https://polygonscan.com/',
-  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL || 'https://replace-with-your-api-domain.example').replace(/\/$/, ''),
+  apiBaseUrl: (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, ''),
   usdtAddress: (import.meta.env.VITE_POLYGON_USDT_ADDRESS || '').trim(),
   protocolAddress: (import.meta.env.VITE_POLYGON_PROTOCOL_ADDRESS || '').trim(),
   vaultAddress: (import.meta.env.VITE_POLYGON_VAULT_ADDRESS || '').trim(),

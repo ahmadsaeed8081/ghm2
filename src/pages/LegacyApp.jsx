@@ -10,6 +10,7 @@ export default function LegacyApp() {
     if (frame) {
       frame.__GHM21_CONFIG__ = networkConfig;
       frame.__GHM21_API_BASE_URL__ = networkConfig.apiBaseUrl;
+      if (typeof frame.applyGHM21Config === 'function') frame.applyGHM21Config(networkConfig);
       // The legacy shell remains temporarily for compatibility, but all persistent
       // task/profile/transaction data is handled by the Express + MongoDB API.
       if (typeof frame.loadCommunityFeed === 'function') frame.loadCommunityFeed();

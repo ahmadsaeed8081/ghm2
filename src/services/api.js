@@ -1,4 +1,4 @@
-const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 async function request(path, options = {}) {
   const response = await fetch(`${base}${path}`, {
     credentials: 'include',

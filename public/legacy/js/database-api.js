@@ -1,7 +1,7 @@
 // Shared API client and SIWE session helpers for the legacy compatibility shell.
 // Persistent user/task data is stored in MongoDB through the Express API, never in localStorage.
         function apiBaseUrl() {
-            return (window.__GHM21_CONFIG__?.apiBaseUrl || window.__GHM21_API_BASE_URL__ || ACTIVE_CHAIN_CONFIG.apiBaseUrl || 'http://localhost:4000').replace(/\/$/, '');
+            return (window.__GHM21_CONFIG__?.apiBaseUrl || window.__GHM21_API_BASE_URL__ || ACTIVE_CHAIN_CONFIG.apiBaseUrl || '').replace(/\/$/, '');
         }
         async function apiRequest(path, options = {}) {
             const headers = { ...(options.headers || {}) };

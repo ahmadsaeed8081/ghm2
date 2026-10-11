@@ -142,6 +142,7 @@ function ConfiguredWalletPicker({ iframeRef, frameReady }) {
     if (!frame || !frameReady || !provider) return false;
     try {
       frame.__GHM21_CONFIG__ = networkConfig;
+      if (typeof frame.applyGHM21Config === 'function') frame.applyGHM21Config(networkConfig);
       frame.__GHM21_SELECTED_PROVIDER__ = provider;
       // The legacy page is same-origin. Assigning this property is only a
       // compatibility bridge; its connect handler prioritizes the explicit
@@ -259,7 +260,10 @@ function ConfiguredWalletPicker({ iframeRef, frameReady }) {
   useEffect(() => {
     if (!frameReady) return;
     const frame = iframeRef.current?.contentWindow;
-    if (frame) frame.__GHM21_CONFIG__ = networkConfig;
+    if (frame) {
+      frame.__GHM21_CONFIG__ = networkConfig;
+      if (typeof frame.applyGHM21Config === 'function') frame.applyGHM21Config(networkConfig);
+    }
   }, [frameReady, iframeRef]);
 
   const disconnectWalletFromApp = async () => {

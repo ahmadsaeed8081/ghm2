@@ -4,7 +4,7 @@ export function ApiStatus() {
   const [status, setStatus] = useState('Checking backend and MongoDB…');
   useEffect(() => {
     api.health().then((result) => setStatus(`API reachable · MongoDB ${result.database || 'status unknown'} · Polygon network (chain ${result.chainId || 'unknown'})`))
-      .catch(() => setStatus('Backend unavailable — start the server and check VITE_API_BASE_URL.'));
+      .catch(() => setStatus('Backend unavailable — make sure /api is routed to the Express server.'));
   }, []);
   return <main className="status-page"><h1>GHM21 system status</h1><p>{status}</p><p>This checks API reachability and MongoDB connection status. It does not certify that the Polygon contract addresses or ABI are correct.</p><a href="/">Return to application</a></main>;
 }
