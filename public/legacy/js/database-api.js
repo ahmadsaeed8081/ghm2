@@ -41,13 +41,11 @@ async function migrateLegacyLocalData() {
     let transactions = [];
     let tasks = [];
     let selectedTier = '';
-    let referralUpliner = '';
     try {
         telegramHandle = localStorage.getItem('ghm21_tg_' + walletKey) || '';
         try { transactions = JSON.parse(localStorage.getItem('ghm21_tx_' + walletKey) || '[]'); } catch { transactions = []; }
         try { tasks = JSON.parse(localStorage.getItem('ghm21_shared_global_feed') || '[]'); } catch { tasks = []; }
         selectedTier = localStorage.getItem('ghm21_selected_tier') || '';
-        referralUpliner = localStorage.getItem('ghm21_ref_upliner') || '';
     } catch (error) {
         console.warn('Legacy browser storage is not available for migration:', error.message);
         return;
@@ -55,7 +53,7 @@ async function migrateLegacyLocalData() {
     try {
         const result = await apiRequest('/api/profile/migrate-legacy', {
             method: 'POST',
-            body: JSON.stringify({ telegramHandle, transactions, tasks, selectedTier, referralUpliner })
+            body: JSON.stringify({ telegramHandle, transactions, tasks, selectedTier })
         });
         // Delete only wallet-specific records after the server confirms the import.
         try {

@@ -15,7 +15,7 @@ export function TelegramProfile() {
     finally { setBusy(false); }
   }
   return <section className="db-panel"><h2>Telegram profile</h2><p className="db-muted">This value is stored against your signed-in wallet, not in browser storage.</p>
-    <form className="db-form" onSubmit={save}><label htmlFor="telegram-handle">Telegram username or numeric chat ID</label><input id="telegram-handle" value={telegramHandle} onChange={(event) => setTelegramHandle(event.target.value)} maxLength={100} placeholder="@yourusername or chat ID" required /><button disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button></form>
+    <form className="db-form" onSubmit={save}><label htmlFor="telegram-handle">Telegram username or numeric chat ID</label><input id="telegram-handle" value={telegramHandle} onChange={(event) => setTelegramHandle(event.target.value)} maxLength={100} placeholder="@yourusername or chat ID" required /><button disabled={busy} aria-busy={busy}>{busy && <span className="inline-spinner" aria-hidden="true" />}{busy ? 'Saving…' : 'Save profile'}</button></form>
     <p className="db-status">{state}</p>
   </section>;
 }

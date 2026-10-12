@@ -760,6 +760,7 @@
         }
         let lohPending = false;
         let parsedUplinerFromRef = DEFAULT_UPLINER;
+        let hasReferralFromUrl = false;
         function applyGHM21Config(runtimeConfig) {
             if (!runtimeConfig) return;
             window.__GHM21_CONFIG__ = runtimeConfig;
@@ -785,8 +786,14 @@
         window.addEventListener('load', async () => {
             const pathSegments = window.location.pathname.split('/');
             const refIdx = pathSegments.indexOf('ref');
-            if (refIdx !== -1 && pathSegments[refIdx + 1] && ethers.isAddress(pathSegments[refIdx + 1])) {
-                parsedUplinerFromRef = pathSegments[refIdx + 1];
+            const referralFromQuery = new URLSearchParams(window.location.search).get('ref');
+            const referralFromPath = refIdx !== -1 ? pathSegments[refIdx + 1] : '';
+            const referralCandidate = referralFromQuery || referralFromPath;
+            if (referralCandidate && ethers.isAddress(referralCandidate)) {
+                parsedUplinerFromRef = ethers.getAddress(referralCandidate);
+                hasReferralFromUrl = true;
+            } else if (referralCandidate) {
+                console.warn('Ignoring invalid referral address in URL:', referralCandidate);
             }
 
 
@@ -909,7 +916,7 @@
 
                 const currentDomain = window.location.origin;
                 const refInput = document.getElementById('userReferralInput');
-                if (refInput) refInput.value = currentDomain + "/ref/" + userWalletAddress;
+                if (refInput) refInput.value = currentDomain + "/?ref=" + encodeURIComponent(userWalletAddress);
 
                 try {
                     await ensureApiSession();
@@ -920,7 +927,11 @@
                     const savedTier = profileResult.user?.profile?.selectedTier;
                     if (savedTier && document.getElementById('phAmount')) document.getElementById('phAmount').value = savedTier;
                     const savedUpliner = profileResult.user?.profile?.referralUpliner;
-                    if (savedUpliner && ethers.isAddress(savedUpliner)) parsedUplinerFromRef = savedUpliner;
+                    // The referral link used for this visit takes priority over
+                    // any referral address previously stored on the profile.
+                    if (!hasReferralFromUrl && savedUpliner && ethers.isAddress(savedUpliner)) {
+                        parsedUplinerFromRef = ethers.getAddress(savedUpliner);
+                    }
                     const tgInput = document.getElementById('telegramIdInput');
                     if (tgInput) tgInput.value = savedTg;
                 } catch (profileError) {
@@ -954,7 +965,6 @@
                 if (!isAutoReconnect) alert("✅ Wallet Connected Successfully: " + masked);
             } catch (error) {
                 console.error("Dynamic wallet connection failed:", error);
-                if (!isAutoReconnect) alert("❌ Wallet connection failed: " + (error?.shortMessage || error?.message || 'Please retry from your wallet.'));
             }
         }
 
@@ -1098,7 +1108,7 @@
                 alert("🛡️ Auditor address successfully rotated on-chain!");
                 document.getElementById('newAuditorInput').value = "";
             } catch (err) {
-                alert("Rotation failed: " + (err.reason || err.message));
+                console.error('Auditor address rotation failed:', err);
             }
         }
 
@@ -1111,7 +1121,7 @@
                 await tx.wait();
                 alert("🛡️ Protocol global pause state successfully toggled to: " + (!currentStatus));
             } catch (err) {
-                alert("Pause toggle failed: Only authorized operations accounts can execute global pause.");
+                console.error('Protocol pause toggle failed:', err);
             }
         }
 
@@ -1126,7 +1136,7 @@
                 alert("🛡️ Emergency Grace Period status successfully updated on-chain!");
                 refreshOnChainData();
             } catch (err) {
-                alert("Grace period request failed: " + (err.reason || err.message));
+                console.error('Emergency grace-period request failed:', err);
             }
         }
 
@@ -1141,7 +1151,7 @@
                 alert("🛡️ Sunset restitution deficit claimed successfully from Safety Net Vault!");
                 refreshOnChainData();
             } catch (err) {
-                alert("Restitution claim failed: " + (err.reason || err.message));
+                console.error('Restitution claim failed:', err);
             }
         }
 
@@ -1156,7 +1166,7 @@
                 alert("🛡️ 90-Day Emergency Relief successfully claimed from vault!");
                 refreshOnChainData();
             } catch (err) {
-                alert("Emergency relief claim failed: " + (err.reason || err.message));
+                console.error('Emergency relief claim failed:', err);
             }
         }
 
@@ -1239,7 +1249,13 @@
 
                 if (userWalletAddress) {
                     let nodeData = { isActive: false, totalPHProvided: 0n, totalGHReceived: 0n, currentTier: 0n, pendingBalance: 0n, hasPendingLOH: false, upliner: ethers.ZeroAddress, cycleStep: 0n };
-                    try { nodeData = await protocolContract.getNode(userWalletAddress); } catch(e) {}
+                    let nodeDataLoaded = false;
+                    try {
+                        nodeData = await protocolContract.getNode(userWalletAddress);
+                        nodeDataLoaded = true;
+                    } catch (e) {
+                        console.error('Dashboard node lookup failed:', e);
+                    }
 
                     let extData = { hasClaimedRestitution: false, rank: 0, directCount: 0, activeWindowExpiry: 0n };
                     try { extData = await protocolContract.nodeExt(userWalletAddress); } catch(e) {}
@@ -1272,7 +1288,11 @@
                         sponsorDisplayVal = OPERATIONS_WALLET_FALLBACK;
                     }
                     const sponsorDispEl = document.getElementById('nodeSponsorDisplay');
-                    if (sponsorDispEl) {
+                    if (sponsorDispEl && !nodeDataLoaded) {
+                        sponsorDispEl.textContent = 'Unavailable';
+                    } else if (sponsorDispEl && (!nodeData.upliner || nodeData.upliner.toLowerCase() === ethers.ZeroAddress.toLowerCase())) {
+                        sponsorDispEl.textContent = 'Not Registered';
+                    } else if (sponsorDispEl) {
                         const maskedSp = sponsorDisplayVal.substring(0, 6) + "..." + sponsorDisplayVal.substring(sponsorDisplayVal.length - 4);
                         sponsorDispEl.innerHTML = maskedSp + ' <button class="copy-btn" onclick="copyToClipboard(\'' + sponsorDisplayVal + '\')" style="padding:2px 4px;"><svg viewBox="0 0 24 24" style="width:10px; height:10px; fill:currentColor;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button>';
                     }
@@ -1418,6 +1438,9 @@
         }
 
         async function executeProvideHelp() {
+
+            
+
             if (!userWalletAddress) { await connectDynamicWallet(); if (!userWalletAddress) return; }
             if (lohPending) {
                 alert("⚠️ PH Locked: You must submit your Letter of Happiness (LOH) before making new contributions.");
@@ -1473,6 +1496,13 @@
                     uplinerToUse = ethers.ZeroAddress;
                 }
 
+                if (uplinerToUse !== ethers.ZeroAddress && !ethers.isAddress(uplinerToUse)) {
+                    throw new Error('Referral/upliner address from the link is invalid. Ask the referrer to create a new referral link.');
+                }
+                if (uplinerToUse !== ethers.ZeroAddress && uplinerToUse.toLowerCase() === userWalletAddress.toLowerCase()) {
+                    throw new Error('You cannot use your own referral link to register.');
+                }
+
                 if (!nodeData.isActive && userWalletAddress.toLowerCase() !== DEFAULT_UPLINER.toLowerCase()) {
                     const regTxRequest = await protocolContract.registerNode.populateTransaction(uplinerToUse, { gasLimit: 300000n });
                     const regTx = await signer.sendTransaction(regTxRequest);
@@ -1500,7 +1530,6 @@
                 refreshOnChainData();
             } catch (err) {
                 console.error('Provide Help preflight/transaction error:', err);
-                alert("Provide Help failed: " + (err.reason || err.shortMessage || err.message || 'Unknown error'));
             }
         }
 
@@ -1605,7 +1634,7 @@
                 window.openModal('lohModal');
                 refreshOnChainData();
             } catch (err) {
-                alert("❌ Submission failed: " + (err.reason || err.message));
+                console.error('Letter of Happiness submission failed:', err);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Submit & Broadcast";
@@ -1645,7 +1674,7 @@
                 document.execCommand('copy');
                 alert("📋 Copied to clipboard successfully!");
             } catch (err) {
-                alert("❌ Copy failed.");
+                console.error('Clipboard copy failed:', err);
             }
             document.body.removeChild(textArea);
         }
@@ -1698,7 +1727,7 @@
                 await tx.wait();
                 recordTxHistory("Fast Pass", "$5.00 USDT", "Confirmed ✓");
                 alert("Fast Pass executed successfully!");
-            } catch (err) { alert("Failed: " + (err.reason || err.message)); }
+            } catch (err) { console.error('Fast Pass transaction failed:', err); }
         }
 
         async function executeBundleFastPass() {
@@ -1717,7 +1746,7 @@
                 await tx.wait();
                 recordTxHistory("Bundle Fast Pass", "$15.00 USDT", "Confirmed ✓");
                 alert("Bundle Fast Pass ($15) executed successfully!");
-            } catch (err) { alert("Failed: " + (err.reason || err.message)); }
+            } catch (err) { console.error('Bundle Fast Pass transaction failed:', err); }
         }
 
 

@@ -12,10 +12,14 @@ async function saveConfirmedTaskToMongoDB({ taskTitle, link, transactionHash, ch
             await recordTxHistory('Task Submission', taskTitle, 'Confirmed on ' + ACTIVE_CHAIN_CONFIG.chainName, transactionHash);
             submitBtn.innerText = 'SUBMITTED ✓';
             submitBtn.className = 'btn-action completed';
+            submitBtn.removeAttribute('aria-busy');
             submitBtn.disabled = true;
             const telegramStatus = savedTask.item?.telegramDeliveryStatus || 'unknown';
             const telegramError = savedTask.item?.telegramDeliveryError;
-            alert('Task confirmed on ' + ACTIVE_CHAIN_CONFIG.chainName + ' and saved to MongoDB. Telegram channel delivery: ' + telegramStatus + '.' + (telegramError ? '\n\nTelegram details: ' + telegramError : ''));
+            if (telegramStatus === 'failed') {
+                console.error('Task was saved, but Telegram channel delivery failed:', telegramError || 'No delivery details were provided.');
+            }
+            alert('Task confirmed on ' + ACTIVE_CHAIN_CONFIG.chainName + ' and saved to MongoDB.');
             await loadCommunityFeed();
         }
 
@@ -45,6 +49,8 @@ async function submitSpecificTask(taskId, taskTitle, threshold) {
             let chainTaskId = '';
             try {
                 submitBtn.disabled = true;
+                submitBtn.classList.add('button-busy');
+                submitBtn.setAttribute('aria-busy', 'true');
                 submitBtn.innerText = 'CHECKING DATABASE SESSION...';
                 await ensureApiSession();
                 if (!signer) throw new Error('Wallet signer is not ready. Reconnect your wallet.');
@@ -77,22 +83,32 @@ async function submitSpecificTask(taskId, taskTitle, threshold) {
                     const retainedFiles = Array.from(fileInput?.files || []);
                     submitBtn.innerText = 'RETRY DATABASE SAVE';
                     submitBtn.disabled = false;
+                    submitBtn.classList.remove('button-busy');
+                    submitBtn.removeAttribute('aria-busy');
                     submitBtn.onclick = async (event) => {
                         event.preventDefault();
+                        if (submitBtn.disabled) return;
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('button-busy');
+                        submitBtn.setAttribute('aria-busy', 'true');
+                        submitBtn.innerText = 'SAVING TASK TO MONGODB...';
                         try {
                             await ensureApiSession();
                             await saveConfirmedTaskToMongoDB({ taskTitle, link, transactionHash: confirmedTxHash, chainTaskId, files: retainedFiles, submitBtn });
                         } catch (retryError) {
                             submitBtn.innerText = 'RETRY DATABASE SAVE';
                             submitBtn.disabled = false;
-                            alert('MongoDB save retry failed: ' + retryError.message + '. No new blockchain transaction was sent; use the same transaction hash.');
+                            submitBtn.classList.remove('button-busy');
+                            submitBtn.removeAttribute('aria-busy');
+                            console.error('MongoDB task-save retry failed; no new blockchain transaction was sent. Reuse the confirmed transaction hash:', { transactionHash: confirmedTxHash, error: retryError });
                         }
                     };
-                    alert('The blockchain transaction was confirmed (' + confirmedTxHash + '), but saving the task to MongoDB failed: ' + err.message + '. Click RETRY DATABASE SAVE to store this same transaction. Do not send the on-chain task again.');
+                    console.error('Blockchain task was confirmed, but saving to MongoDB failed. Use RETRY DATABASE SAVE; do not submit a new on-chain task:', { transactionHash: confirmedTxHash, error: err });
                 } else {
                     submitBtn.disabled = false;
                     submitBtn.innerText = 'Submit Proof';
-                    alert('Task submission failed: ' + (err.reason || err.shortMessage || err.message));
+                    submitBtn.classList.remove('button-busy');
+                    submitBtn.removeAttribute('aria-busy');
                 }
             }
         }
@@ -108,7 +124,15 @@ async function loadCommunityFeed() {
                     feedContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 11px;">No submissions in the public feed yet.</p>';
                     return;
                 }
-                const isAuditor = userWalletAddress && userWalletAddress.trim().toLowerCase() === AUDITOR_SIGN_OFF.trim().toLowerCase();
+                const connectedWallet = (userWalletAddress || '').trim().toLowerCase();
+                const configuredOperations = (OPERATIONS_WALLET_FALLBACK || '').trim().toLowerCase();
+                let deployedAuditor = '';
+                try {
+                    if (protocolContract) deployedAuditor = (await protocolContract.auditorAddress()).trim().toLowerCase();
+                } catch (error) {
+                    console.warn('Could not read the deployed auditor wallet:', error);
+                }
+                const isAuditor = Boolean(connectedWallet && (connectedWallet === configuredOperations || connectedWallet === deployedAuditor));
                 let html = '';
                 submissions.forEach((sub) => {
                     const mongoId = String(sub.id || sub._id);
@@ -126,8 +150,8 @@ async function loadCommunityFeed() {
                     const chainTaskId = /^\d+$/.test(String(sub.onChainTaskId ?? '')) ? Number(sub.onChainTaskId) : -1;
                     let auditorButtons = '';
                     if (isAuditor && chainTaskId >= 0) {
-                        auditorButtons = '<button class="btn-action" style="font-size:9px;padding:3px 8px;" onclick="auditorApproveTask(' + chainTaskId + ', \'' + mongoId + '\')">APPROVE</button>' +
-                            '<button class="btn-action" style="font-size:9px;padding:3px 8px;background:rgba(255,51,102,0.1);color:#ff3366;border-color:rgba(255,51,102,0.3);" onclick="auditorRejectTask(\'' + mongoId + '\', \'' + escapeHtml(performer) + '\', \'' + escapeHtml(sub.taskTitle || '') + '\')">REJECT</button>';
+                        auditorButtons = '<button class="btn-action" style="font-size:9px;padding:3px 8px;" onclick="withButtonBusy(this, () => auditorApproveTask(' + chainTaskId + ', \'' + mongoId + '\'), \'Approving…\')">APPROVE</button>' +
+                            '<button class="btn-action" style="font-size:9px;padding:3px 8px;background:rgba(255,51,102,0.1);color:#ff3366;border-color:rgba(255,51,102,0.3);" onclick="withButtonBusy(this, () => auditorRejectTask(\'' + mongoId + '\', \'' + escapeHtml(performer) + '\', \'' + escapeHtml(sub.taskTitle || '') + '\'), \'Saving…\')">REJECT</button>';
                     }
                     const attachment = (sub.attachmentUrls || []).map((file, fileIndex) => '<div style="font-size:10px;margin-top:4px;"><a href="' + escapeHtml(apiBaseUrl() + file.url) + '" target="_blank" rel="noopener" style="color:var(--electric-cyan);">📎 View proof attachment ' + (fileIndex + 1) + ': ' + escapeHtml(file.filename || 'file') + '</a></div>').join('');
                     html += '<div class="feed-card" id="submission_' + mongoId + '" style="border-left:3px solid ' + (isVerified ? 'var(--neon-emerald)' : 'var(--electric-cyan)') + ';">' +
@@ -137,14 +161,14 @@ async function loadCommunityFeed() {
                         '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">' + escapeHtml(new Date(sub.createdAt).toLocaleString()) + ' · ' + (isVerified ? 'Verified' : 'Awaiting auditor') + '</div>' +
                         '<div class="modal-item-row" style="font-size:10px;color:var(--text-muted);"><span>Likes: <b id="likeCount_' + mongoId + '" style="color:var(--neon-emerald);">' + likes + '</b> | Tips: <b id="tipCount_' + mongoId + '" style="color:var(--neon-emerald);">' + tips + '/' + thresholdMax + '</b></span>' +
                         '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
-                        '<button class="btn-action cyan" style="font-size:9px;padding:3px 8px;" onclick="handleLike(\'' + mongoId + '\')">' + (sub.likedByMe ? 'UNLIKE' : 'LIKE') + '</button>' +
-                        (chainTaskId >= 0 ? '<button class="btn-action cyan" style="font-size:9px;padding:3px 8px;" onclick="handleTip(\'' + mongoId + '\',' + chainTaskId + ',' + thresholdMax + ')">$1 TIP</button>' : '') + auditorButtons +
+                        '<button class="btn-action cyan" style="font-size:9px;padding:3px 8px;" onclick="withButtonBusy(this, () => handleLike(\'' + mongoId + '\'), \'Saving…\')">' + (sub.likedByMe ? 'UNLIKE' : 'LIKE') + '</button>' +
+                        (chainTaskId >= 0 ? '<button class="btn-action cyan" style="font-size:9px;padding:3px 8px;" onclick="withButtonBusy(this, () => handleTip(\'' + mongoId + '\',' + chainTaskId + ',' + thresholdMax + '), \'Sending tip…\')">$1 TIP</button>' : '') + auditorButtons +
                         '</div></div></div>';
                 });
                 feedContainer.innerHTML = html;
             } catch (err) {
                 console.error('MongoDB task feed error:', err);
-                feedContainer.innerHTML = '<p style="color:#ff3366;font-size:11px;">Could not load the shared database feed. Check the API server and MongoDB connection.</p>';
+                feedContainer.innerHTML = '<p style="color:#ff3366;font-size:11px;">Could not load the shared database feed: ' + escapeHtml(err?.message || 'Unknown API error') + '. Check that the API is running and /api is proxied to port 4000.</p>';
             }
         }
 
@@ -171,7 +195,7 @@ async function recoverConfirmedTaskSubmission() {
                 alert(result.alreadySaved ? 'This confirmed task was already saved to MongoDB.' : 'The existing on-chain task was verified and saved to MongoDB. No new blockchain transaction was sent.');
                 await loadCommunityFeed();
             } catch (error) {
-                alert('The existing task could not be recovered: ' + error.message + '. Do not submit a new on-chain task.');
+                console.error('Could not recover the existing confirmed task. Do not submit a new on-chain task:', { transactionHash, error });
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = 'Save confirmed task';
@@ -183,7 +207,7 @@ async function recoverConfirmedTaskSubmission() {
                 await ensureApiSession();
                 await apiRequest('/api/tasks/' + encodeURIComponent(taskMongoId) + '/like', { method: 'POST', body: JSON.stringify({}) });
                 await loadCommunityFeed();
-            } catch (error) { alert('Like could not be saved: ' + error.message); }
+            } catch (error) { console.error('Like could not be saved:', error); }
         }
 
         async function handleTip(taskMongoId, chainTaskId, thresholdMax) {
@@ -212,7 +236,7 @@ async function recoverConfirmedTaskSubmission() {
                 }
                 alert("⚡ $1 Tip successfully sent on-chain!");
             } catch(e) {
-                alert("Tip failed: " + (e.reason || e.message));
+                console.error('Task tip failed:', e);
             }
         }
 
@@ -228,7 +252,7 @@ async function recoverConfirmedTaskSubmission() {
                 alert('Task successfully approved on ' + ACTIVE_CHAIN_CONFIG.chainName + ' and updated in MongoDB.');
                 await loadCommunityFeed();
             } catch(e) {
-                alert('Approval failed: ' + (e.reason || e.message));
+                console.error('Task approval failed:', e);
             }
         }
 
@@ -241,6 +265,6 @@ async function recoverConfirmedTaskSubmission() {
                 alert('Rejection note saved to MongoDB.');
                 await loadCommunityFeed();
             } catch (error) {
-                alert('Rejection was not saved: ' + error.message);
+                console.error('Task rejection was not saved:', error);
             }
         }

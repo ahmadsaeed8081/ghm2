@@ -5,6 +5,12 @@ import { networkConfig } from '../web3.js';
 export default function LegacyApp() {
   const iframeRef = useRef(null);
   const [frameReady, setFrameReady] = useState(false);
+  const pageUrl = new URL(window.location.href);
+  const referralFromQuery = pageUrl.searchParams.get('ref');
+  const referralFromPath = pageUrl.pathname.match(/^\/ref\/(0x[a-fA-F0-9]{40})\/?$/)?.[1];
+  const legacyUrl = new URL('/legacy.html', pageUrl.origin);
+  const referralAddress = referralFromQuery || referralFromPath;
+  if (referralAddress) legacyUrl.searchParams.set('ref', referralAddress);
   const handleFrameLoad = useCallback(() => {
     const frame = iframeRef.current?.contentWindow;
     if (frame) {
@@ -18,7 +24,7 @@ export default function LegacyApp() {
     setFrameReady(true);
   }, []);
   return <main className="legacy-host">
-    <iframe ref={iframeRef} title="GHM21 P2P Mutual Aid Protocol" src="/legacy.html"
+    <iframe ref={iframeRef} title="GHM21 P2P Mutual Aid Protocol" src={`${legacyUrl.pathname}${legacyUrl.search}`}
       onLoad={handleFrameLoad} allow="clipboard-read; clipboard-write" />
     <WalletBridge iframeRef={iframeRef} frameReady={frameReady} />
     <a className="migration-link" href="/migration-status">API status</a>

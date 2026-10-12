@@ -10,6 +10,6 @@ async function saveTelegramId() {
                 alert("Telegram name/ID saved to your MongoDB profile.");
                 await sendTelegramAlert(val, "GHM21: Your Telegram name/ID has been saved for wallet " + userWalletAddress + ".");
             } catch (error) {
-                alert("Could not save Telegram details to the database: " + error.message);
+                console.error('Could not save Telegram details to the database:', error);
             }
         }

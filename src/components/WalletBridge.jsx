@@ -344,7 +344,7 @@ function ConfiguredWalletPicker({ iframeRef, frameReady }) {
             onClick={() => chooseInjected(wallet)}>
             {wallet.icon ? <img src={wallet.icon} alt="" /> : <span className="wallet-option-icon">◈</span>}
             <span className="wallet-option-name">{wallet.name}</span>
-            <span className="wallet-option-action">{busyId === wallet.id ? 'Connecting…' : 'Select'}</span>
+            <span className="wallet-option-action">{busyId === wallet.id && <span className="inline-spinner" aria-hidden="true" />}{busyId === wallet.id ? 'Connecting…' : 'Select'}</span>
           </button>)}
         </div> : <div className="wallet-picker-empty">No browser extension wallets detected. You can connect using WalletConnect below.</div>}
         <div className="wallet-picker-divider"><span>OR CONNECT WITH</span></div>
